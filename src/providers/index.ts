@@ -1,0 +1,30 @@
+/**
+ * Provider exports for @chabaduniverse/auth-sdk
+ */
+
+export {
+  UniverseAuthProvider,
+  useUniverseAuthContext,
+  UniverseAuthContext,
+} from './UniverseAuthProvider';
+
+export type { UniverseAuthContextValue } from './UniverseAuthProvider';
+
+// Export provider configuration types
+export type {
+  UniverseAuthConfig,
+  UniverseAuthProviderProps,
+  MerkosConfig,
+  ValuConfig,
+  CdssoConfig,
+} from './types';
+
+export {
+  defaultConfig,
+  defaultMerkosConfig,
+  defaultValuConfig,
+  defaultCdssoConfig,
+} from './types';
+
+// Note: User, state, and provider types are exported from src/types/
+// Import from '@chabaduniverse/auth-sdk' to get all types

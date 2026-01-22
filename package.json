@@ -1,0 +1,129 @@
+{
+  "name": "@chabaduniverse/auth-sdk",
+  "version": "0.1.0",
+  "description": "Unified authentication SDK for Chabad Universe ecosystem",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    },
+    "./providers": {
+      "import": {
+        "types": "./dist/providers/index.d.ts",
+        "default": "./dist/providers/index.js"
+      },
+      "require": {
+        "types": "./dist/providers/index.d.cts",
+        "default": "./dist/providers/index.cjs"
+      }
+    },
+    "./hooks": {
+      "import": {
+        "types": "./dist/hooks/index.d.ts",
+        "default": "./dist/hooks/index.js"
+      },
+      "require": {
+        "types": "./dist/hooks/index.d.cts",
+        "default": "./dist/hooks/index.cjs"
+      }
+    },
+    "./components": {
+      "import": {
+        "types": "./dist/components/index.d.ts",
+        "default": "./dist/components/index.js"
+      },
+      "require": {
+        "types": "./dist/components/index.d.cts",
+        "default": "./dist/components/index.cjs"
+      }
+    },
+    "./cdsso": {
+      "import": {
+        "types": "./dist/cdsso/index.d.ts",
+        "default": "./dist/cdsso/index.js"
+      },
+      "require": {
+        "types": "./dist/cdsso/index.d.cts",
+        "default": "./dist/cdsso/index.cjs"
+      }
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "dev": "tsup --watch",
+    "build": "tsup",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint src --ext .ts,.tsx",
+    "lint:fix": "eslint src --ext .ts,.tsx --fix",
+    "format": "prettier --write \"src/**/*.{ts,tsx}\"",
+    "type-check": "tsc --noEmit",
+    "prepublishOnly": "pnpm build"
+  },
+  "peerDependencies": {
+    "@arkeytyp/valu-api": ">=0.1.0",
+    "@chabaduniverse/auth": ">=0.1.0",
+    "react": ">=18.0.0",
+    "react-dom": ">=18.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@arkeytyp/valu-api": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@testing-library/react": "^14.2.1",
+    "@types/node": "^20.11.0",
+    "@types/react": "^18.2.48",
+    "@types/react-dom": "^18.2.18",
+    "@typescript-eslint/eslint-plugin": "^6.19.0",
+    "@typescript-eslint/parser": "^6.19.0",
+    "eslint": "^8.56.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-react": "^7.33.2",
+    "eslint-plugin-react-hooks": "^4.6.0",
+    "happy-dom": "^13.3.1",
+    "prettier": "^3.2.4",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "tsup": "^8.0.1",
+    "typescript": "^5.3.3",
+    "vitest": "^1.2.1"
+  },
+  "keywords": [
+    "chabad",
+    "universe",
+    "auth",
+    "authentication",
+    "sdk",
+    "react",
+    "merkos",
+    "valu"
+  ],
+  "author": "Merkos 302",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/merkos-302/chabaduniverse-auth-sdk"
+  },
+  "bugs": {
+    "url": "https://github.com/merkos-302/chabaduniverse-auth-sdk/issues"
+  },
+  "homepage": "https://github.com/merkos-302/chabaduniverse-auth-sdk#readme",
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
