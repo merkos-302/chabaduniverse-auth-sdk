@@ -35,7 +35,7 @@
  * ```
  */
 
-import { useMerkosContext } from './MerkosProvider';
+import { useMerkosContext, useMerkosContextSafe } from './MerkosProvider';
 import type { UseMerkosReturn, MerkosUserData } from './merkos-types';
 
 // ============================================================================
@@ -72,6 +72,64 @@ export function useMerkos(): UseMerkosReturn {
     clearToken: context.clearToken,
     v2Request: context.v2Request,
   };
+}
+
+// ============================================================================
+// Safe Hook (for optional provider usage)
+// ============================================================================
+
+/**
+ * Return type when Merkos context is not available
+ */
+export interface UseMerkosSafeReturn {
+  /** Whether Merkos context is available */
+  isAvailable: false;
+}
+
+/**
+ * useMerkosSafe hook
+ *
+ * Safe version of useMerkos that returns null-ish state if used outside MerkosProvider.
+ * Useful for components that may or may not be within the Merkos context.
+ *
+ * @returns UseMerkosReturn if within MerkosProvider, otherwise UseMerkosSafeReturn
+ */
+export function useMerkosSafe(): UseMerkosReturn | UseMerkosSafeReturn {
+  const context = useMerkosContextSafe();
+
+  if (!context) {
+    return {
+      isAvailable: false,
+    };
+  }
+
+  return {
+    state: context.state,
+    isAuthenticated: context.isAuthenticated,
+    isLoading: context.isLoading,
+    hasBearerToken: context.hasBearerToken,
+    user: context.user,
+    token: context.token,
+    error: context.error,
+    loginWithCredentials: context.loginWithCredentials,
+    loginWithBearerToken: context.loginWithBearerToken,
+    loginWithGoogle: context.loginWithGoogle,
+    loginWithChabadOrg: context.loginWithChabadOrg,
+    getCurrentUser: context.getCurrentUser,
+    logout: context.logout,
+    setToken: context.setToken,
+    clearToken: context.clearToken,
+    v2Request: context.v2Request,
+  };
+}
+
+/**
+ * Type guard to check if Merkos result is available
+ */
+export function isMerkosAvailable(
+  result: UseMerkosReturn | UseMerkosSafeReturn
+): result is UseMerkosReturn {
+  return !('isAvailable' in result && result.isAvailable === false);
 }
 
 // ============================================================================

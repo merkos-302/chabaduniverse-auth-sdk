@@ -551,6 +551,16 @@ export function useMerkosContext(): MerkosContextValue {
   return context;
 }
 
+/**
+ * useMerkosContextSafe hook
+ *
+ * Returns the Merkos context value or null if outside MerkosProvider.
+ * Useful for optional Merkos integration.
+ */
+export function useMerkosContextSafe(): MerkosContextValue | null {
+  return useContext(MerkosContext);
+}
+
 // ============================================================================
 // Exports
 // ============================================================================

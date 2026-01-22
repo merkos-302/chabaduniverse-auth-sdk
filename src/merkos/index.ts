@@ -24,6 +24,7 @@ export {
   MerkosProvider,
   MerkosContext,
   useMerkosContext,
+  useMerkosContextSafe,
 } from './MerkosProvider';
 
 export type { MerkosProviderProps } from './MerkosProvider';
@@ -34,11 +35,15 @@ export type { MerkosProviderProps } from './MerkosProvider';
 
 export {
   useMerkos,
+  useMerkosSafe,
+  isMerkosAvailable,
   useMerkosUser,
   useMerkosToken,
   useMerkosAuth,
   useMerkosActions,
 } from './useMerkos';
+
+export type { UseMerkosSafeReturn } from './useMerkos';
 
 // ============================================================================
 // Types
