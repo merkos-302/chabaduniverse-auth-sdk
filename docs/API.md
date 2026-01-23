@@ -422,6 +422,8 @@ import {
 
 Valu Social integration.
 
+> **Important:** If you're building an iframe application for Valu Social, see the [Valu Iframe Integration Guide](./VALU_IFRAME_INTEGRATION.md) for critical setup instructions, including how to handle the `api:ready` race condition.
+
 ### ValuProvider
 
 ```tsx

@@ -107,15 +107,21 @@ src/
 │   ├── MerkosProvider.tsx      # Merkos context provider
 │   ├── useMerkos.ts            # Merkos hooks
 │   ├── merkos-utils.ts         # Utility functions
-│   ├── types.ts                # Merkos types
+│   ├── merkos-types.ts         # Merkos types
 │   └── index.ts                # Merkos exports
 │
-└── valu/                       # Valu module
-    ├── ValuProvider.tsx        # Valu context provider
-    ├── useValu.ts              # Valu hooks
-    ├── valu-utils.ts           # Utility functions
-    ├── types.ts                # Valu types
-    └── index.ts                # Valu exports
+├── valu/                       # Valu module
+│   ├── ValuProvider.tsx        # Valu context provider
+│   ├── useValu.ts              # Valu hooks
+│   ├── valu-utils.ts           # Utility functions
+│   ├── valu-types.ts           # Valu types
+│   └── index.ts                # Valu exports
+│
+├── utils/                      # Shared utilities
+│   └── index.ts
+│
+└── test/                       # Test configuration
+    └── setup.ts
 ```
 
 ---
@@ -452,6 +458,17 @@ Note: These are pre-minification sizes. Tree-shaking significantly reduces final
 2. **CDSSO** - Uses state parameter for CSRF protection
 3. **Cookie Checks** - SameSite and Secure attributes respected
 4. **JWT Validation** - Expiration checked client-side
+
+---
+
+## Iframe Integration
+
+When running inside Valu Social iframes, there's a critical race condition to handle. See the [Valu Iframe Integration Guide](./VALU_IFRAME_INTEGRATION.md) for:
+
+- Understanding the `api:ready` timing issue
+- Implementing early message buffering
+- Connection troubleshooting
+- Best practices for iframe development
 
 ---
 

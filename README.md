@@ -183,6 +183,7 @@ const {
 | [Examples](./docs/EXAMPLES.md) | Usage examples and patterns |
 | [Migration Guide](./docs/MIGRATION.md) | Migrating from existing auth |
 | [Architecture](./docs/ARCHITECTURE.md) | Technical architecture |
+| [Valu Iframe Integration](./docs/VALU_IFRAME_INTEGRATION.md) | Iframe setup, race condition fixes, troubleshooting |
 
 ## Development
 

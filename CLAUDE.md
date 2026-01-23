@@ -69,6 +69,10 @@ src/
 │   ├── hooks.ts                    # Hook types
 │   ├── components.ts               # Component types
 │   └── index.ts
+├── utils/
+│   └── index.ts                    # Shared utilities
+├── test/
+│   └── setup.ts                    # Test configuration
 └── index.ts                        # Main exports
 ```
 
@@ -295,6 +299,11 @@ The project includes specialized subagents in `.claude/agents/`:
 
 ## Related Documentation
 
+- [API Reference](./docs/API.md) - Complete API documentation
+- [Architecture](./docs/ARCHITECTURE.md) - Technical architecture
+- [Examples](./docs/EXAMPLES.md) - Usage examples and patterns
+- [Migration Guide](./docs/MIGRATION.md) - Migrating from direct package usage
+- [Valu Iframe Integration](./docs/VALU_IFRAME_INTEGRATION.md) - Iframe setup, race condition fixes
 - [universe-portal CLAUDE.md](../universe-portal/CLAUDE.md)
 - [chabaduniverse-auth](../chabaduniverse-auth/)
 - [Unified SDK Vision](../universe-portal/docs/planning/UNIFIED_AUTH_PACKAGE_VISION.md)

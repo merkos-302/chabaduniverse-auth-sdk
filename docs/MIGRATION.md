@@ -428,7 +428,7 @@ function LogoutButton() {
 
 ### Issue: Valu not connecting
 
-**Cause**: Valu requires being in an iframe context.
+**Cause**: Valu requires being in an iframe context, or there may be a race condition with the `api:ready` message.
 
 **Solution**:
 ```tsx
@@ -439,6 +439,8 @@ if (!providers.valu.isInIframe) {
   console.log('Valu requires iframe context');
 }
 ```
+
+If you're in an iframe but `api.connected` is always `false`, you may be experiencing a race condition. See the [Valu Iframe Integration Guide](./VALU_IFRAME_INTEGRATION.md) for the early message buffering solution.
 
 ### Issue: CDSSO not working
 

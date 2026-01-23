@@ -438,6 +438,8 @@ function MerkosProfile() {
 
 ### Valu-Specific Operations
 
+> **Note:** If you're building an iframe application for Valu Social and encountering connection issues (e.g., `api.connected` always returns `false`), see the [Valu Iframe Integration Guide](./VALU_IFRAME_INTEGRATION.md) for the recommended early message buffering solution.
+
 ```tsx
 import { useValuSafe, isValuAvailable } from '@chabaduniverse/auth-sdk';
 
