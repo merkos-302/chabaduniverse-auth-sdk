@@ -63,6 +63,8 @@
     "README.md"
   ],
   "scripts": {
+    "full": "npm i && npm run build && npm run lint && npm run type-check && npm test",
+    "new": "rm -rf dist && rm -rf node_modules && npm cache clean --force && npm run full",
     "dev": "tsup --watch",
     "build": "tsup",
     "test": "vitest run",
@@ -85,12 +87,15 @@
     }
   },
   "devDependencies": {
+    "@arkeytyp/valu-api": "^1.1.0",
+    "@chabaduniverse/auth": "^0.1.0",
     "@testing-library/react": "^14.2.1",
     "@types/node": "^20.11.0",
     "@types/react": "^18.2.48",
     "@types/react-dom": "^18.2.18",
     "@typescript-eslint/eslint-plugin": "^6.19.0",
     "@typescript-eslint/parser": "^6.19.0",
+    "@vitest/coverage-v8": "1.6.1",
     "eslint": "^8.56.0",
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-react": "^7.33.2",
