@@ -17,7 +17,9 @@ The Universe Portal uses @arkeytyp/valu-api v1.1.0 with advanced features:
 - **Connection Management**: iframe communication and timeout handling
 - **Portal Integration**: Service navigation and communication flows
 
-**Official Documentation**: [Valu API v1.1.0 Documentation](https://github.com/Roomful/valu-api?tab=readme-ov-file#usage)
+**Official Documentation**: [Valu Social Docs](https://docs.texpo.io/valu-api) | [Intents Reference](https://docs.texpo.io/intents-doc) | [SDK GitHub](https://github.com/Roomful/valu-api)
+
+**Full Docs Reference**: Read `.claude/agents/VALUVERSE_DOCS_REFERENCE.md` for complete intents table, API class reference, and known limitations.
 
 ## Expertise Domain
 
