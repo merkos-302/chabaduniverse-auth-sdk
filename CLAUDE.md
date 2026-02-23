@@ -42,7 +42,7 @@ src/
 │   ├── LoginButton.tsx             # Pre-built login UI
 │   ├── AuthGuard.tsx               # Route protection
 │   ├── UserMenu.tsx                # User dropdown
-│   ├── AuthStatus.tsx              # Auth status display
+│   ├── AuthStatusDisplay.tsx       # Auth status display
 │   └── index.ts
 ├── cdsso/
 │   ├── cdsso-client.ts             # Cross-domain SSO client

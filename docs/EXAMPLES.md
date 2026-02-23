@@ -364,7 +364,7 @@ function UserAvatar() {
 ### Auth Status Debug Panel
 
 ```tsx
-import { AuthStatus } from '@chabaduniverse/auth-sdk';
+import { AuthStatusDisplay } from '@chabaduniverse/auth-sdk';
 
 function DebugPanel() {
   // Only show in development
@@ -374,7 +374,7 @@ function DebugPanel() {
 
   return (
     <div className="debug-panel">
-      <AuthStatus
+      <AuthStatusDisplay
         showProviders
         showUser
         showErrors

@@ -93,7 +93,7 @@ src/
 │   ├── LoginButton.tsx         # Login button
 │   ├── AuthGuard.tsx           # Route protection
 │   ├── UserMenu.tsx            # User dropdown
-│   ├── AuthStatus.tsx          # Debug status display
+│   ├── AuthStatusDisplay.tsx   # Debug status display
 │   └── index.ts                # Component exports
 │
 ├── cdsso/                      # CDSSO module

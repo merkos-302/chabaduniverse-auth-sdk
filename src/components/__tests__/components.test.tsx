@@ -3,7 +3,7 @@ import { render, screen } from '@testing-library/react';
 import { AuthGuard } from '../AuthGuard';
 import { LoginButton } from '../LoginButton';
 import { UserMenu } from '../UserMenu';
-import { AuthStatus } from '../AuthStatus';
+import { AuthStatusDisplay } from '../AuthStatusDisplay';
 import { UniverseAuthProvider } from '../../providers/UniverseAuthProvider';
 import type { ReactNode } from 'react';
 
@@ -206,27 +206,27 @@ describe('UserMenu', () => {
   // This is a limitation of our current mock setup
 });
 
-describe('AuthStatus', () => {
+describe('AuthStatusDisplay', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
   it('renders with default props', () => {
-    render(<AuthStatus />, { wrapper });
+    render(<AuthStatusDisplay />, { wrapper });
 
     expect(screen.getByTestId('auth-status')).toBeDefined();
     expect(screen.getByText('Auth Status')).toBeDefined();
   });
 
   it('renders in compact mode', () => {
-    render(<AuthStatus compact />, { wrapper });
+    render(<AuthStatusDisplay compact />, { wrapper });
 
     const status = screen.getByTestId('auth-status');
     expect(status.className).toContain('--compact');
   });
 
   it('shows status flags', () => {
-    render(<AuthStatus />, { wrapper });
+    render(<AuthStatusDisplay />, { wrapper });
 
     expect(screen.getByText('Authenticated')).toBeDefined();
     expect(screen.getByText('Loading')).toBeDefined();
@@ -234,7 +234,7 @@ describe('AuthStatus', () => {
   });
 
   it('shows providers when showProviders is true', () => {
-    render(<AuthStatus showProviders />, { wrapper });
+    render(<AuthStatusDisplay showProviders />, { wrapper });
 
     expect(screen.getByText('Providers')).toBeDefined();
     expect(screen.getByText('Merkos')).toBeDefined();
@@ -243,7 +243,7 @@ describe('AuthStatus', () => {
   });
 
   it('applies className and style', () => {
-    render(<AuthStatus className="custom-class" style={{ border: '1px solid red' }} />, { wrapper });
+    render(<AuthStatusDisplay className="custom-class" style={{ border: '1px solid red' }} />, { wrapper });
 
     const status = screen.getByTestId('auth-status');
     expect(status.className).toContain('custom-class');

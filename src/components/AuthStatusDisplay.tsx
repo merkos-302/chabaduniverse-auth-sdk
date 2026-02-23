@@ -1,10 +1,10 @@
-// AuthStatus component - debug/status display
+// AuthStatusDisplay component - debug/status display
 import { useUniverseAuth } from '../hooks/useUniverseAuth';
 import { useAuthStatus } from '../hooks/useAuthStatus';
 import type { AuthStatusProps } from '../types/components';
 
 /**
- * AuthStatus - Debug/status component showing current auth state
+ * AuthStatusDisplay - Debug/status component showing current auth state
  *
  * Useful for development and debugging authentication flows.
  * Should NOT be used in production with showTokens enabled.
@@ -12,10 +12,10 @@ import type { AuthStatusProps } from '../types/components';
  * @example
  * ```tsx
  * // Basic status display
- * <AuthStatus />
+ * <AuthStatusDisplay />
  *
  * // Full debug info (development only!)
- * <AuthStatus
+ * <AuthStatusDisplay
  *   showProviders
  *   showUser
  *   showTokens
@@ -23,10 +23,10 @@ import type { AuthStatusProps } from '../types/components';
  * />
  *
  * // Compact mode
- * <AuthStatus compact />
+ * <AuthStatusDisplay compact />
  * ```
  */
-export function AuthStatus({
+export function AuthStatusDisplay({
   showProviders = true,
   showUser = true,
   showTokens = false,
