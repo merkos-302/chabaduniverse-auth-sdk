@@ -541,6 +541,21 @@ import {
 
 ---
 
+## Re-exports from @chabaduniverse/auth
+
+The SDK re-exports key utilities from `@chabaduniverse/auth` for convenience:
+
+```typescript
+import { configureIdentityHooks } from '@chabaduniverse/auth-sdk';
+
+// Configure identity hooks for your application
+configureIdentityHooks({
+  // your configuration
+});
+```
+
+---
+
 ## Type Guards
 
 ```typescript

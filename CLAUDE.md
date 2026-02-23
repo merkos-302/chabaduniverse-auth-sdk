@@ -3,7 +3,7 @@
 ## Project Overview
 
 **Package:** @chabaduniverse/auth-sdk
-**Version:** 0.1.0
+**Version:** 0.1.1
 **Purpose:** Unified authentication SDK for Chabad Universe ecosystem
 **Status:** Ready for Release
 
