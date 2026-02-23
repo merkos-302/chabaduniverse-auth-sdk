@@ -299,15 +299,15 @@ import { UserMenu } from '@chabaduniverse/auth-sdk';
 | `redirectOnLogout` | `boolean` | `false` | Redirect after logout |
 | `logoutRedirectUrl` | `string` | `'/'` | Redirect URL |
 
-### AuthStatus
+### AuthStatusDisplay
 
 Debug/status component for development.
 
 ```tsx
-import { AuthStatus } from '@chabaduniverse/auth-sdk';
+import { AuthStatusDisplay } from '@chabaduniverse/auth-sdk';
 
 // Full status display
-<AuthStatus
+<AuthStatusDisplay
   showProviders
   showUser
   showTokens  // WARNING: development only!
@@ -315,7 +315,7 @@ import { AuthStatus } from '@chabaduniverse/auth-sdk';
 />
 
 // Compact mode
-<AuthStatus compact />
+<AuthStatusDisplay compact />
 ```
 
 #### Props
