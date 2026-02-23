@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { CdssoClient, CDSSOClient, getDefaultCdssoClient, authenticate, logout, checkRemoteSession, applyTokenToPortal, isAuthenticated, getAuthStatus, getBearerToken } from '../cdsso-client';
+import { CdssoClient, CDSSOClient, getDefaultCdssoClient, setDefaultCdssoClient, resetDefaultCdssoClient, authenticate, logout, checkRemoteSession, applyTokenToPortal, isAuthenticated, getAuthStatus, getBearerToken } from '../cdsso-client';
 import * as cdssoUtils from '../cdsso-utils';
 
 // Mock cdsso-utils
@@ -452,6 +452,7 @@ describe('Convenience Functions', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockFetch.mockReset();
+    resetDefaultCdssoClient();
   });
 
   describe('getDefaultCdssoClient', () => {
@@ -535,6 +536,58 @@ describe('Convenience Functions', () => {
       vi.mocked(cdssoUtils.getStoredToken).mockReturnValue(null);
       const result = getBearerToken();
       expect(result).toBeNull();
+    });
+  });
+
+  describe('getDefaultCdssoClient with config', () => {
+    it('should create singleton with provided config on first call', () => {
+      const client = getDefaultCdssoClient({ debug: true, storageKey: 'custom-key' });
+      expect(client).toBeInstanceOf(CdssoClient);
+    });
+
+    it('should ignore config on subsequent calls and return same singleton', () => {
+      const client1 = getDefaultCdssoClient({ storageKey: 'first-key' });
+      const client2 = getDefaultCdssoClient({ storageKey: 'second-key' });
+      expect(client1).toBe(client2);
+    });
+  });
+
+  describe('setDefaultCdssoClient', () => {
+    it('should replace the singleton with a pre-configured instance', () => {
+      const original = getDefaultCdssoClient();
+      const custom = new CdssoClient({ debug: true });
+      setDefaultCdssoClient(custom);
+      const current = getDefaultCdssoClient();
+      expect(current).toBe(custom);
+      expect(current).not.toBe(original);
+    });
+  });
+
+  describe('resetDefaultCdssoClient', () => {
+    it('should clear the singleton so next call creates a fresh instance', () => {
+      const first = getDefaultCdssoClient();
+      resetDefaultCdssoClient();
+      const second = getDefaultCdssoClient();
+      expect(second).not.toBe(first);
+      expect(second).toBeInstanceOf(CdssoClient);
+    });
+
+    it('should allow convenience functions to use the new singleton after reset', async () => {
+      // Get initial singleton and set a token on it
+      const initial = getDefaultCdssoClient();
+      initial.setToken('old-token');
+
+      // Reset and create fresh singleton
+      resetDefaultCdssoClient();
+
+      // getBearerToken now uses a new client that has no token
+      vi.mocked(cdssoUtils.getStoredToken).mockReturnValue(null);
+      const token = getBearerToken();
+      expect(token).toBeNull();
+
+      // Verify the new singleton is different from the initial one
+      const fresh = getDefaultCdssoClient();
+      expect(fresh).not.toBe(initial);
     });
   });
 });

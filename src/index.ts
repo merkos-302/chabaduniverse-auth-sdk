@@ -57,6 +57,8 @@ export {
   CdssoClient,
   CDSSOClient,
   getDefaultCdssoClient,
+  setDefaultCdssoClient,
+  resetDefaultCdssoClient,
   authenticate,
   logout,
   checkRemoteSession,
