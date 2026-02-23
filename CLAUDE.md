@@ -53,6 +53,7 @@ src/
 │   └── index.ts
 ├── valu/
 │   ├── ValuProvider.tsx            # Valu context provider
+│   ├── early-message-buffer.ts    # Early message buffer (race condition fix)
 │   ├── useValu.ts                  # Valu React hooks
 │   ├── valu-utils.ts               # Valu utilities
 │   ├── valu-types.ts               # Valu types
@@ -102,7 +103,7 @@ pnpm type-check       # TypeScript check
 
 ## Testing Strategy
 
-- **339 tests passing** across 13 test files
+- **363 tests passing** across 14 test files
 - Unit tests for hooks and utilities
 - Integration tests for provider interactions
 - Mock implementations for both Valu and Merkos APIs
@@ -116,6 +117,7 @@ pnpm type-check       # TypeScript check
 | cdsso-utils | 40 | CDSSO utility functions |
 | cdsso-client | 58 | CDSSO client implementation |
 | token-lifecycle | 38 | Token lifecycle manager |
+| early-message-buffer | 24 | Early message buffer (race condition fix) |
 | useMerkos | 22 | Merkos React hooks |
 | useValu | 20 | Valu React hooks |
 | useCdsso | 16 | CDSSO React hooks |
@@ -267,7 +269,7 @@ This is a MANDATORY workflow step that must NEVER be skipped:
 5. **Update CLAUDE.md and relevant docs when making changes** - Keep documentation synchronized
 6. **Check session files for context** - Review `.claude/sessions/` for recent work and patterns
 7. **Peer Dependencies First** - SDK depends on @chabaduniverse/auth and @arkeytyp/valu-api as peer deps
-8. **Test Coverage Requirement** - Maintain 80%+ coverage on all metrics (339+ tests)
+8. **Test Coverage Requirement** - Maintain 80%+ coverage on all metrics (363+ tests)
 9. **TypeScript Strict Mode** - Full type safety required, no `any` types without justification
 10. **Tree-Shakeable Exports** - Export individual components for bundle optimization
 

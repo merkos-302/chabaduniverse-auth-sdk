@@ -10,6 +10,7 @@ Complete API documentation for @chabaduniverse/auth-sdk.
 - [CDSSO Module](#cdsso-module)
 - [Merkos Module](#merkos-module)
 - [Valu Module](#valu-module)
+  - [Early Message Buffer](#early-message-buffer)
 - [Types](#types)
 
 ---
@@ -535,6 +536,96 @@ import {
   parseValuConnectionState,
   normalizeValuUser,
 } from '@chabaduniverse/auth-sdk';
+```
+
+### Early Message Buffer
+
+#### The Problem
+
+Valu Social communicates with embedded apps via `postMessage`. It sends an `api:ready` message as soon as the iframe loads, but React applications typically need several hundred milliseconds to mount components and initialize `ValuApi`. This creates a **race condition**: the `api:ready` message arrives and is lost before any listener is installed, leaving `ValuApi` stuck waiting for a ready signal that already fired.
+
+#### The Solution
+
+The SDK includes a built-in early message buffer that solves this race condition at the module level. When the buffer module is first imported, it immediately installs a `window.addEventListener('message', ...)` listener -- before React renders a single component. Any Valu API messages (identified by `target: 'valuApi'` or `name: 'api:ready'`) are captured into an in-memory buffer. Once `ValuApi` is initialized, the buffered messages are replayed as synthetic `MessageEvent`s so the API processes them normally.
+
+> **Note:** The buffer starts capturing automatically on import. No setup code is required.
+
+#### Exported Functions
+
+```typescript
+import {
+  startCapturing,
+  stopCapturing,
+  replayBufferedMessages,
+  getBufferedMessages,
+  hasBeenReplayed,
+  isBufferCapturing,
+  resetBuffer,
+} from '@chabaduniverse/auth-sdk/valu/early-message-buffer';
+```
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `startCapturing` | `(config?: EarlyMessageBufferConfig) => void` | Begin capturing early Valu messages. Called automatically on import; safe to call again (no-ops if already capturing). |
+| `stopCapturing` | `() => void` | Stop capturing and remove the event listener. Called automatically after replay. |
+| `replayBufferedMessages` | `(maxMessageAge?: number) => number` | Replay all buffered messages as synthetic `MessageEvent`s. Filters out messages older than `maxMessageAge` (default 30 000 ms). Stops capturing and clears the buffer. Returns the count of replayed messages. |
+| `getBufferedMessages` | `() => readonly BufferedMessage[]` | Returns a shallow copy of the current buffer contents. Useful for debugging and testing. |
+| `hasBeenReplayed` | `() => boolean` | Whether `replayBufferedMessages` has already been called. |
+| `isBufferCapturing` | `() => boolean` | Whether the buffer is currently capturing messages. |
+| `resetBuffer` | `() => void` | Stop capturing, clear the buffer, and reset all internal state. Primarily for testing. |
+
+#### Types
+
+```typescript
+/** A buffered PostMessage event captured before ValuApi initialization. */
+interface BufferedMessage {
+  /** The message payload (event.data) */
+  data: unknown;
+  /** The origin of the message (event.origin) */
+  origin: string;
+  /** Timestamp when the message was captured */
+  timestamp: number;
+}
+
+/** Configuration for the early message buffer. */
+interface EarlyMessageBufferConfig {
+  /** Maximum number of messages to buffer (prevents memory leaks). @default 50 */
+  maxBufferSize?: number;
+  /** Maximum age in ms for a buffered message to be considered replayable. @default 30000 */
+  maxMessageAge?: number;
+  /** Enable debug logging. @default false */
+  debug?: boolean;
+}
+```
+
+#### Automatic Usage via ValuProvider
+
+For most consumers, the buffer is completely transparent. The `ValuProvider` replays buffered messages internally when it initializes `ValuApi`, so no manual intervention is needed:
+
+```tsx
+import { ValuProvider, useValu } from '@chabaduniverse/auth-sdk';
+
+// The early message buffer is already capturing by the time this renders.
+// ValuProvider replays any buffered messages when it mounts.
+function App() {
+  return (
+    <ValuProvider config={{ appId: 'my-app' }}>
+      <MyApp />
+    </ValuProvider>
+  );
+}
+```
+
+#### Manual Usage (Advanced)
+
+If you need fine-grained control -- for example, custom `ValuApi` instantiation outside of `ValuProvider` -- you can replay the buffer yourself:
+
+```typescript
+import { replayBufferedMessages, getBufferedMessages } from '@chabaduniverse/auth-sdk/valu/early-message-buffer';
+
+// After creating your own ValuApi instance:
+const count = replayBufferedMessages();
+console.log(`Replayed ${count} early Valu messages`);
 ```
 
 ---

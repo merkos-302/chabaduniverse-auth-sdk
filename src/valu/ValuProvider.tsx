@@ -29,6 +29,7 @@ import {
   type ReactNode,
 } from 'react';
 import { ValuApi, Intent } from '@arkeytyp/valu-api';
+import { replayBufferedMessages } from './early-message-buffer';
 import type {
   ValuProviderConfig,
   ValuContextValue,
@@ -184,6 +185,11 @@ export function ValuProvider({
 
       // Apply monkey patches for known issues
       applyApiPatches(api);
+
+      // Replay any early messages that arrived before React initialized.
+      // This fixes the race condition where Valu Social sends `api:ready`
+      // before ValuApi is listening. See: GitHub issue #12
+      replayBufferedMessages();
 
       // Wait for API_READY event with timeout
       const connected = await withTimeout(
