@@ -57,6 +57,8 @@ export {
   CdssoClient,
   CDSSOClient,
   getDefaultCdssoClient,
+  setDefaultCdssoClient,
+  resetDefaultCdssoClient,
   authenticate,
   logout,
   checkRemoteSession,
@@ -68,8 +70,12 @@ export {
   // Hooks
   useCdsso,
   useCdssoAutoAuth,
+  useCdssoAutoRefresh,
   useCdssoToken,
   useCdssoUser,
+  // Token Lifecycle
+  TokenLifecycleManager,
+  defaultTokenLifecycleConfig,
   // Default values
   defaultMerkosConfig,
   defaultCrossDomainConfig,
@@ -106,6 +112,9 @@ export type {
   RemoteSessionResponse,
   PortalAuthResponse,
   UseCdssoReturn,
+  UseCdssoAutoRefreshReturn,
+  TokenState,
+  TokenLifecycleConfig,
   CDSSOConfig,
   CDSSOToken,
   CDSSOMessage,
@@ -164,6 +173,12 @@ export type {
 // ============================================================================
 
 export * from './valu';
+
+// ============================================================================
+// Re-exports from @chabaduniverse/auth
+// ============================================================================
+
+export { configureIdentityHooks } from '@chabaduniverse/auth';
 
 // ============================================================================
 // Core Types

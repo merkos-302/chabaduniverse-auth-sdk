@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { CdssoClient, CDSSOClient, getDefaultCdssoClient, authenticate, logout, checkRemoteSession, applyTokenToPortal, isAuthenticated, getAuthStatus, getBearerToken } from '../cdsso-client';
+import { CdssoClient, CDSSOClient, getDefaultCdssoClient, setDefaultCdssoClient, resetDefaultCdssoClient, authenticate, logout, checkRemoteSession, applyTokenToPortal, isAuthenticated, getAuthStatus, getBearerToken } from '../cdsso-client';
 import * as cdssoUtils from '../cdsso-utils';
 
 // Mock cdsso-utils
@@ -378,6 +378,110 @@ describe('CdssoClient', () => {
   });
 });
 
+describe('Auto-Refresh Lifecycle', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.clearAllMocks();
+    mockFetch.mockReset();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('startAutoRefresh() should create and start lifecycle manager', () => {
+    const client = new CdssoClient();
+    client.startAutoRefresh({ checkInterval: 5000 });
+
+    // getTokenState should no longer be 'idle' if the manager has started
+    // (it evaluates the token immediately on start)
+    const state = client.getTokenState();
+    // Without a token, state should transition to 'expired' (not 'idle')
+    expect(state).not.toBe('idle');
+  });
+
+  it('stopAutoRefresh() should stop the manager', () => {
+    const client = new CdssoClient();
+    client.startAutoRefresh({ checkInterval: 5000 });
+    client.stopAutoRefresh();
+
+    // Manager is stopped but getTokenState() still returns last state
+    // The key test is that no errors are thrown
+    expect(client.getTokenState()).toBeDefined();
+  });
+
+  it('getTokenState() should return idle when no manager exists', () => {
+    const client = new CdssoClient();
+    expect(client.getTokenState()).toBe('idle');
+  });
+
+  it('clearSession() should stop auto-refresh', () => {
+    const client = new CdssoClient();
+    client.startAutoRefresh({ checkInterval: 5000 });
+
+    // getTokenState returns something other than 'idle' while running
+    expect(client.getTokenState()).not.toBe('idle');
+
+    client.clearSession();
+
+    // After clearSession, manager should be stopped
+    // (The state stays at whatever it was when stopped, but no errors thrown)
+    expect(cdssoUtils.removeToken).toHaveBeenCalled();
+  });
+
+  it('startAutoRefresh() should stop previous manager before starting new one', () => {
+    const client = new CdssoClient();
+    client.startAutoRefresh({ checkInterval: 5000 });
+    // Starting again with different config should not throw
+    client.startAutoRefresh({ checkInterval: 10000, expirationBuffer: 120 });
+
+    expect(client.getTokenState()).toBeDefined();
+    client.stopAutoRefresh();
+  });
+
+  it('startAutoRefresh() should enable autoRefresh by default', async () => {
+    // Set up a token that is "expired" so refresh will be attempted
+    vi.mocked(cdssoUtils.getStoredToken).mockReturnValue(null);
+
+    // Mock fetch for the refresh cycle (checkRemoteSession + applyTokenToPortal)
+    const mockUser = { id: '1', email: 'test@example.com', name: 'Test' };
+    mockFetch
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({ status: 'loggedIn', token: 'refreshed-token' }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({ status: 'success', user: mockUser }),
+      });
+
+    const client = new CdssoClient();
+    client.startAutoRefresh({ checkInterval: 60000 });
+
+    // Let the async refresh triggered by immediate tick complete
+    for (let i = 0; i < 10; i++) {
+      await Promise.resolve();
+    }
+
+    // The refresh should have been attempted because autoRefresh defaults to true in startAutoRefresh
+    expect(mockFetch).toHaveBeenCalled();
+
+    client.stopAutoRefresh();
+  });
+
+  it('constructor with lifecycle config should create manager automatically', () => {
+    vi.mocked(cdssoUtils.getStoredToken).mockReturnValue(null);
+
+    const client = new CdssoClient({
+      lifecycle: { autoRefresh: true, checkInterval: 5000 },
+    });
+
+    // The lifecycle manager is created but not started by the constructor
+    // getTokenState should be 'idle' since manager.start() is not called in constructor
+    expect(client.getTokenState()).toBe('idle');
+  });
+});
+
 describe('CDSSOClient (Legacy)', () => {
   let originalWindow: typeof window;
 
@@ -452,6 +556,7 @@ describe('Convenience Functions', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockFetch.mockReset();
+    resetDefaultCdssoClient();
   });
 
   describe('getDefaultCdssoClient', () => {
@@ -535,6 +640,58 @@ describe('Convenience Functions', () => {
       vi.mocked(cdssoUtils.getStoredToken).mockReturnValue(null);
       const result = getBearerToken();
       expect(result).toBeNull();
+    });
+  });
+
+  describe('getDefaultCdssoClient with config', () => {
+    it('should create singleton with provided config on first call', () => {
+      const client = getDefaultCdssoClient({ debug: true, storageKey: 'custom-key' });
+      expect(client).toBeInstanceOf(CdssoClient);
+    });
+
+    it('should ignore config on subsequent calls and return same singleton', () => {
+      const client1 = getDefaultCdssoClient({ storageKey: 'first-key' });
+      const client2 = getDefaultCdssoClient({ storageKey: 'second-key' });
+      expect(client1).toBe(client2);
+    });
+  });
+
+  describe('setDefaultCdssoClient', () => {
+    it('should replace the singleton with a pre-configured instance', () => {
+      const original = getDefaultCdssoClient();
+      const custom = new CdssoClient({ debug: true });
+      setDefaultCdssoClient(custom);
+      const current = getDefaultCdssoClient();
+      expect(current).toBe(custom);
+      expect(current).not.toBe(original);
+    });
+  });
+
+  describe('resetDefaultCdssoClient', () => {
+    it('should clear the singleton so next call creates a fresh instance', () => {
+      const first = getDefaultCdssoClient();
+      resetDefaultCdssoClient();
+      const second = getDefaultCdssoClient();
+      expect(second).not.toBe(first);
+      expect(second).toBeInstanceOf(CdssoClient);
+    });
+
+    it('should allow convenience functions to use the new singleton after reset', async () => {
+      // Get initial singleton and set a token on it
+      const initial = getDefaultCdssoClient();
+      initial.setToken('old-token');
+
+      // Reset and create fresh singleton
+      resetDefaultCdssoClient();
+
+      // getBearerToken now uses a new client that has no token
+      vi.mocked(cdssoUtils.getStoredToken).mockReturnValue(null);
+      const token = getBearerToken();
+      expect(token).toBeNull();
+
+      // Verify the new singleton is different from the initial one
+      const fresh = getDefaultCdssoClient();
+      expect(fresh).not.toBe(initial);
     });
   });
 });

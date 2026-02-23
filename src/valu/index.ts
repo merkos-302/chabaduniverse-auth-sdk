@@ -130,3 +130,22 @@ export {
   valuLogger,
   type ValuLogLevel,
 } from './valu-utils';
+
+// ============================================================================
+// Early Message Buffer
+// ============================================================================
+
+export {
+  startCapturing,
+  stopCapturing,
+  replayBufferedMessages,
+  getBufferedMessages,
+  hasBeenReplayed,
+  isBufferCapturing,
+  resetBuffer,
+} from './early-message-buffer';
+
+export type {
+  BufferedMessage,
+  EarlyMessageBufferConfig,
+} from './early-message-buffer';

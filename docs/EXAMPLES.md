@@ -9,6 +9,7 @@ Practical examples for using @chabaduniverse/auth-sdk.
 - [Protected Routes](#protected-routes)
 - [User Interface](#user-interface)
 - [Provider-Specific Features](#provider-specific-features)
+- [Valu API Race Condition](#valu-api-race-condition)
 - [Error Handling](#error-handling)
 - [Testing](#testing)
 
@@ -364,7 +365,7 @@ function UserAvatar() {
 ### Auth Status Debug Panel
 
 ```tsx
-import { AuthStatus } from '@chabaduniverse/auth-sdk';
+import { AuthStatusDisplay } from '@chabaduniverse/auth-sdk';
 
 function DebugPanel() {
   // Only show in development
@@ -374,7 +375,7 @@ function DebugPanel() {
 
   return (
     <div className="debug-panel">
-      <AuthStatus
+      <AuthStatusDisplay
         showProviders
         showUser
         showErrors
@@ -507,6 +508,100 @@ function CdssoManager() {
     </div>
   );
 }
+```
+
+---
+
+## Valu API Race Condition
+
+### The Problem
+
+When a Chabad Universe app runs inside a Valu Social iframe, Valu sends an `api:ready` PostMessage as soon as the iframe loads. Because React applications take time to mount, the ready message often arrives *before* `ValuApi` has been instantiated. The message is lost, and the Valu connection never completes.
+
+A simplified timeline of the problem:
+
+```
+1. Browser loads the JS bundle
+2. Valu Social sends `api:ready` via postMessage     <-- arrives here
+3. React begins rendering
+4. ValuProvider mounts
+5. ValuApi is created and starts listening            <-- listener installed here
+6. ValuApi waits for `api:ready`... which already fired
+   → Connection hangs indefinitely
+```
+
+### Automatic Fix via ValuProvider
+
+The SDK ships an early message buffer that captures Valu messages at **module load time** -- before React renders anything. When `ValuProvider` mounts and creates `ValuApi`, it replays the buffered messages so the connection proceeds normally.
+
+As a consumer, you do not need to do anything special. The standard setup already handles this:
+
+```tsx
+import { UniverseAuthProvider } from '@chabaduniverse/auth-sdk';
+
+function App() {
+  return (
+    <UniverseAuthProvider
+      appId="my-app"
+      config={{ enableValu: true }}
+    >
+      <MyApp />
+    </UniverseAuthProvider>
+  );
+}
+
+// The corrected timeline:
+// 1. Browser loads the JS bundle
+// 2. Early message buffer listener is installed immediately on import
+// 3. Valu Social sends `api:ready` → captured into buffer
+// 4. React begins rendering
+// 5. ValuProvider mounts, creates ValuApi
+// 6. Buffered messages are replayed → ValuApi receives `api:ready`
+// 7. Connection succeeds
+```
+
+### Manual Buffer Usage (Advanced)
+
+If you are creating a `ValuApi` instance outside of `ValuProvider` (for example, in a non-React context or a custom integration layer), you can replay the buffer manually:
+
+```typescript
+import {
+  replayBufferedMessages,
+  getBufferedMessages,
+  hasBeenReplayed,
+} from '@chabaduniverse/auth-sdk/valu/early-message-buffer';
+
+// Check what was captured (useful for debugging)
+const buffered = getBufferedMessages();
+console.log(`${buffered.length} early messages captured`);
+
+// After your custom ValuApi instance is ready:
+if (!hasBeenReplayed()) {
+  const count = replayBufferedMessages();
+  console.log(`Replayed ${count} early messages`);
+}
+```
+
+You can also pass a custom maximum message age to discard stale messages:
+
+```typescript
+// Only replay messages that arrived within the last 10 seconds
+const count = replayBufferedMessages(10_000);
+```
+
+### Debugging the Buffer
+
+Enable debug logging by calling `startCapturing` with the `debug` option before the default auto-start takes effect. In practice this means calling it at the very top of your entry point:
+
+```typescript
+import { resetBuffer, startCapturing } from '@chabaduniverse/auth-sdk/valu/early-message-buffer';
+
+// Reset the auto-started buffer and restart with debug logging
+resetBuffer();
+startCapturing({ debug: true });
+
+// Now all buffer activity is logged to console.debug with the prefix:
+// [ValuSDK][EarlyBuffer] ...
 ```
 
 ---

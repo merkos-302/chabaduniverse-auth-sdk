@@ -65,7 +65,25 @@ function MyApp() {
 - **CDSSO Support** - Cross-domain SSO out of the box
 - **React Components** - Pre-built UI components (LoginButton, AuthGuard, UserMenu)
 - **TypeScript** - Full type safety with strict mode
-- **Tree-Shakeable** - Import only what you need
+- **Tree-Shakeable** - Import only what you need via sub-path exports
+- **Code Splitting** - Shared chunks minimize bundle duplication
+
+## Sub-Path Imports
+
+Import only the modules you need for smaller bundles:
+
+```tsx
+// Full SDK
+import { useUniverseAuth, LoginButton } from '@chabaduniverse/auth-sdk';
+
+// Individual modules
+import { MerkosProvider, useMerkos } from '@chabaduniverse/auth-sdk/merkos';
+import { ValuProvider, useValu } from '@chabaduniverse/auth-sdk/valu';
+import { CdssoClient, useCdsso } from '@chabaduniverse/auth-sdk/cdsso';
+import { UniverseAuthProvider } from '@chabaduniverse/auth-sdk/providers';
+import { useUniverseAuth } from '@chabaduniverse/auth-sdk/hooks';
+import { LoginButton, AuthGuard } from '@chabaduniverse/auth-sdk/components';
+```
 
 ## Components
 

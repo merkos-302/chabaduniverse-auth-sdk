@@ -44,6 +44,7 @@ import {
   hasAuthCookie,
   createCdssoLogger,
 } from './cdsso-utils';
+import { TokenLifecycleManager, type TokenLifecycleConfig, type TokenState } from './token-lifecycle';
 
 // ============================================================================
 // Merkos Platform CDSSO Client
@@ -61,13 +62,24 @@ export class CdssoClient {
   private logger: ReturnType<typeof createCdssoLogger>;
   private state: CdssoState = { ...initialCdssoState };
   private listeners: Set<(state: CdssoState) => void> = new Set();
+  private lifecycleManager: TokenLifecycleManager | null = null;
 
-  constructor(config: Partial<CdssoMerkosConfig> = {}) {
-    this.config = { ...defaultMerkosConfig, ...config };
+  constructor(config: Partial<CdssoMerkosConfig> & { lifecycle?: TokenLifecycleConfig } = {}) {
+    const { lifecycle: lifecycleConfig, ...merkosConfig } = config;
+    this.config = { ...defaultMerkosConfig, ...merkosConfig };
     this.logger = createCdssoLogger(this.config);
 
     // Check for existing token on construction
     this.initializeFromStorage();
+
+    if (lifecycleConfig?.autoRefresh) {
+      this.lifecycleManager = new TokenLifecycleManager(
+        () => this.refreshToken(),
+        () => this.getBearerToken(),
+        lifecycleConfig,
+        this.config.debug,
+      );
+    }
   }
 
   /**
@@ -325,9 +337,20 @@ export class CdssoClient {
   }
 
   /**
+   * Refresh the token by performing a full CDSSO refresh cycle.
+   */
+  private async refreshToken(): Promise<string | null> {
+    const token = await this.checkRemoteSession();
+    if (!token) return null;
+    const user = await this.applyTokenToPortal(token);
+    return user ? token : null;
+  }
+
+  /**
    * Clear local session data
    */
   clearSession(): void {
+    this.lifecycleManager?.stop();
     removeToken(this.config.storageKey);
     this.updateState({
       ...initialCdssoState,
@@ -438,6 +461,40 @@ export class CdssoClient {
       token,
       isTokenStored: true,
     });
+  }
+
+  /**
+   * Start automatic token lifecycle management.
+   * Monitors token expiration and refreshes before expiry.
+   */
+  startAutoRefresh(config?: TokenLifecycleConfig): void {
+    if (this.lifecycleManager) {
+      this.lifecycleManager.stop();
+    }
+    if (!this.lifecycleManager || config) {
+      const effectiveConfig = { autoRefresh: true, ...config };
+      this.lifecycleManager = new TokenLifecycleManager(
+        () => this.refreshToken(),
+        () => this.getBearerToken(),
+        effectiveConfig,
+        this.config.debug,
+      );
+    }
+    this.lifecycleManager.start();
+  }
+
+  /**
+   * Stop automatic token lifecycle management.
+   */
+  stopAutoRefresh(): void {
+    this.lifecycleManager?.stop();
+  }
+
+  /**
+   * Get the current token lifecycle state.
+   */
+  getTokenState(): TokenState {
+    return this.lifecycleManager?.getTokenState() ?? 'idle';
   }
 }
 
@@ -576,12 +633,37 @@ let defaultClient: CdssoClient | null = null;
 
 /**
  * Get the default CDSSO client instance
+ *
+ * On first call, creates a singleton with the provided config (or defaults).
+ * Subsequent calls return the existing singleton and ignore any config argument.
+ *
+ * @param config - Optional config used only when creating the singleton
  */
-export function getDefaultCdssoClient(): CdssoClient {
+export function getDefaultCdssoClient(config?: Partial<CdssoMerkosConfig>): CdssoClient {
   if (!defaultClient) {
-    defaultClient = new CdssoClient();
+    defaultClient = new CdssoClient(config);
   }
   return defaultClient;
+}
+
+/**
+ * Replace the default singleton with a pre-configured CdssoClient instance
+ *
+ * Use this when you need full control over the client that convenience
+ * functions (authenticate, logout, etc.) delegate to.
+ *
+ * @param client - A fully configured CdssoClient instance
+ */
+export function setDefaultCdssoClient(client: CdssoClient): void {
+  defaultClient = client;
+}
+
+/**
+ * Clear the default singleton so the next call to getDefaultCdssoClient()
+ * creates a fresh instance. Useful for tests and environment reconfiguration.
+ */
+export function resetDefaultCdssoClient(): void {
+  defaultClient = null;
 }
 
 /**

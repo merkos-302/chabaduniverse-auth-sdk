@@ -46,6 +46,8 @@ export {
   CDSSOClient,
   // Convenience functions
   getDefaultCdssoClient,
+  setDefaultCdssoClient,
+  resetDefaultCdssoClient,
   authenticate,
   logout,
   checkRemoteSession,
@@ -64,8 +66,13 @@ export {
 export {
   useCdsso,
   useCdssoAutoAuth,
+  useCdssoAutoRefresh,
   useCdssoToken,
   useCdssoUser,
+} from './useCdsso';
+
+export type {
+  UseCdssoAutoRefreshReturn,
 } from './useCdsso';
 
 // ============================================================================
@@ -101,6 +108,20 @@ export {
   defaultCrossDomainConfig,
   initialCdssoState,
 } from './types';
+
+// ============================================================================
+// Token Lifecycle
+// ============================================================================
+
+export {
+  TokenLifecycleManager,
+  defaultTokenLifecycleConfig,
+} from './token-lifecycle';
+
+export type {
+  TokenState,
+  TokenLifecycleConfig,
+} from './token-lifecycle';
 
 // ============================================================================
 // Utilities

@@ -39,7 +39,7 @@ To update all documentation files:
    - Updates feature lists based on implemented functionality
    - Updates module and hook listings
    - Updates type definitions documentation
-   - Updates test coverage information (289 tests across 12 files)
+   - Updates test coverage information (339 tests across 13 files)
    - Maintains consistent information across all docs
 
 4. **Verify Consistency**: Ensures all documentation files contain matching information

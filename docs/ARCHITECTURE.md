@@ -93,7 +93,7 @@ src/
 │   ├── LoginButton.tsx         # Login button
 │   ├── AuthGuard.tsx           # Route protection
 │   ├── UserMenu.tsx            # User dropdown
-│   ├── AuthStatus.tsx          # Debug status display
+│   ├── AuthStatusDisplay.tsx   # Debug status display
 │   └── index.ts                # Component exports
 │
 ├── cdsso/                      # CDSSO module
@@ -407,6 +407,14 @@ The project uses strict TypeScript configuration:
     "./cdsso": {
       "import": "./dist/cdsso/index.js",
       "require": "./dist/cdsso/index.cjs"
+    },
+    "./merkos": {
+      "import": "./dist/merkos/index.js",
+      "require": "./dist/merkos/index.cjs"
+    },
+    "./valu": {
+      "import": "./dist/valu/index.js",
+      "require": "./dist/valu/index.cjs"
     }
   }
 }
@@ -423,6 +431,8 @@ export default defineConfig({
     'hooks/index': 'src/hooks/index.ts',
     'components/index': 'src/components/index.ts',
     'cdsso/index': 'src/cdsso/index.ts',
+    'merkos/index': 'src/merkos/index.ts',
+    'valu/index': 'src/valu/index.ts',
   },
   format: ['esm', 'cjs'],
   dts: true,
@@ -436,13 +446,15 @@ export default defineConfig({
 
 | Entry Point | ESM | CJS |
 |-------------|-----|-----|
-| index | ~98KB | ~102KB |
-| providers | ~36KB | ~37KB |
-| hooks | ~6KB | ~7KB |
-| components | ~24KB | ~25KB |
-| cdsso | ~22KB | ~23KB |
+| index | ~2.7KB | ~16.5KB |
+| providers | ~0.5KB | ~2.0KB |
+| hooks | ~0.4KB | ~1.6KB |
+| components | ~0.3KB | ~0.8KB |
+| cdsso | ~0.7KB | ~5.2KB |
+| merkos | ~0.5KB | ~3.4KB |
+| valu | ~0.6KB | ~4.3KB |
 
-Note: These are pre-minification sizes. Tree-shaking significantly reduces final bundle size.
+Note: With code splitting enabled, shared code is extracted into chunk files. ESM entry points are small re-export stubs; CJS entry points include more inlined code. Tree-shaking further reduces final bundle size.
 
 ---
 
