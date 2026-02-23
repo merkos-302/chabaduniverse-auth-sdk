@@ -1,6 +1,6 @@
 {
   "name": "@chabaduniverse/auth-sdk",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Unified authentication SDK for Chabad Universe ecosystem",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -56,6 +56,26 @@
         "types": "./dist/cdsso/index.d.cts",
         "default": "./dist/cdsso/index.cjs"
       }
+    },
+    "./merkos": {
+      "import": {
+        "types": "./dist/merkos/index.d.ts",
+        "default": "./dist/merkos/index.js"
+      },
+      "require": {
+        "types": "./dist/merkos/index.d.cts",
+        "default": "./dist/merkos/index.cjs"
+      }
+    },
+    "./valu": {
+      "import": {
+        "types": "./dist/valu/index.d.ts",
+        "default": "./dist/valu/index.js"
+      },
+      "require": {
+        "types": "./dist/valu/index.d.cts",
+        "default": "./dist/valu/index.cjs"
+      }
     }
   },
   "files": [
@@ -63,8 +83,8 @@
     "README.md"
   ],
   "scripts": {
-    "full": "npm i && npm run build && npm run lint && npm run type-check && npm test",
-    "new": "rm -rf dist && rm -rf node_modules && npm cache clean --force && npm run full",
+    "full": "pnpm install && pnpm build && pnpm lint && pnpm type-check && pnpm test",
+    "new": "rm -rf dist && rm -rf node_modules && pnpm store prune && pnpm run full",
     "dev": "tsup --watch",
     "build": "tsup",
     "test": "vitest run",
