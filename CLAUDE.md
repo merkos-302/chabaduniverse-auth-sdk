@@ -101,7 +101,7 @@ pnpm type-check       # TypeScript check
 
 ## Testing Strategy
 
-- **289 tests passing** across 12 test files
+- **294 tests passing** across 12 test files
 - Unit tests for hooks and utilities
 - Integration tests for provider interactions
 - Mock implementations for both Valu and Merkos APIs
@@ -113,7 +113,7 @@ pnpm type-check       # TypeScript check
 | merkos-utils | 42 | Merkos utility functions |
 | valu-utils | 37 | Valu utility functions |
 | cdsso-utils | 40 | CDSSO utility functions |
-| cdsso-client | 46 | CDSSO client implementation |
+| cdsso-client | 51 | CDSSO client implementation |
 | useMerkos | 22 | Merkos React hooks |
 | useValu | 20 | Valu React hooks |
 | useCdsso | 16 | CDSSO React hooks |
@@ -265,7 +265,7 @@ This is a MANDATORY workflow step that must NEVER be skipped:
 5. **Update CLAUDE.md and relevant docs when making changes** - Keep documentation synchronized
 6. **Check session files for context** - Review `.claude/sessions/` for recent work and patterns
 7. **Peer Dependencies First** - SDK depends on @chabaduniverse/auth and @arkeytyp/valu-api as peer deps
-8. **Test Coverage Requirement** - Maintain 80%+ coverage on all metrics (289+ tests)
+8. **Test Coverage Requirement** - Maintain 80%+ coverage on all metrics (294+ tests)
 9. **TypeScript Strict Mode** - Full type safety required, no `any` types without justification
 10. **Tree-Shakeable Exports** - Export individual components for bundle optimization
 

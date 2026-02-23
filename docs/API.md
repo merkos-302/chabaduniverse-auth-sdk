@@ -342,14 +342,43 @@ import { CdssoClient, getDefaultCdssoClient } from '@chabaduniverse/auth-sdk';
 // Create custom client
 const client = new CdssoClient(config);
 
-// Or use default
-const defaultClient = getDefaultCdssoClient();
+// Or use default singleton (optionally pass config for first-time creation)
+const defaultClient = getDefaultCdssoClient({ debug: true });
 
 // Methods
 await client.authenticate();
 await client.logout();
 await client.checkRemoteSession();
 const token = client.getBearerToken();
+```
+
+### Singleton Management
+
+Three functions manage the default `CdssoClient` singleton:
+
+| Function | Signature | Description |
+|----------|-----------|-------------|
+| `getDefaultCdssoClient` | `(config?: Partial<CdssoMerkosConfig>) => CdssoClient` | Returns the default singleton. If no singleton exists yet, creates one using the provided config. Once created, subsequent calls return the existing singleton and ignore any config argument. |
+| `setDefaultCdssoClient` | `(client: CdssoClient) => void` | Replaces the default singleton with a pre-configured `CdssoClient` instance. Useful when you need full control over client construction. |
+| `resetDefaultCdssoClient` | `() => void` | Clears the singleton so the next call to `getDefaultCdssoClient` creates a fresh instance. Primarily useful in tests. |
+
+```typescript
+import {
+  getDefaultCdssoClient,
+  setDefaultCdssoClient,
+  resetDefaultCdssoClient,
+  CdssoClient,
+} from '@chabaduniverse/auth-sdk';
+
+// 1. Configure via getDefaultCdssoClient (config only used on first call)
+const client = getDefaultCdssoClient({ debug: true, storageKey: 'my-key' });
+
+// 2. Replace with a fully custom client
+const customClient = new CdssoClient(customConfig);
+setDefaultCdssoClient(customClient);
+
+// 3. Reset the singleton (e.g., between test runs)
+resetDefaultCdssoClient();
 ```
 
 ### Utility Functions

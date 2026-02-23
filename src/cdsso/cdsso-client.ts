@@ -576,12 +576,37 @@ let defaultClient: CdssoClient | null = null;
 
 /**
  * Get the default CDSSO client instance
+ *
+ * On first call, creates a singleton with the provided config (or defaults).
+ * Subsequent calls return the existing singleton and ignore any config argument.
+ *
+ * @param config - Optional config used only when creating the singleton
  */
-export function getDefaultCdssoClient(): CdssoClient {
+export function getDefaultCdssoClient(config?: Partial<CdssoMerkosConfig>): CdssoClient {
   if (!defaultClient) {
-    defaultClient = new CdssoClient();
+    defaultClient = new CdssoClient(config);
   }
   return defaultClient;
+}
+
+/**
+ * Replace the default singleton with a pre-configured CdssoClient instance
+ *
+ * Use this when you need full control over the client that convenience
+ * functions (authenticate, logout, etc.) delegate to.
+ *
+ * @param client - A fully configured CdssoClient instance
+ */
+export function setDefaultCdssoClient(client: CdssoClient): void {
+  defaultClient = client;
+}
+
+/**
+ * Clear the default singleton so the next call to getDefaultCdssoClient()
+ * creates a fresh instance. Useful for tests and environment reconfiguration.
+ */
+export function resetDefaultCdssoClient(): void {
+  defaultClient = null;
 }
 
 /**

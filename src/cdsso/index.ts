@@ -46,6 +46,8 @@ export {
   CDSSOClient,
   // Convenience functions
   getDefaultCdssoClient,
+  setDefaultCdssoClient,
+  resetDefaultCdssoClient,
   authenticate,
   logout,
   checkRemoteSession,
