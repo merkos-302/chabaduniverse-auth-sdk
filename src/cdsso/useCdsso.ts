@@ -33,6 +33,7 @@ import type {
   UseCdssoReturn,
 } from './types';
 import { initialCdssoState } from './types';
+import type { TokenLifecycleConfig, TokenState } from './token-lifecycle';
 
 // ============================================================================
 // Hook Implementation
@@ -182,6 +183,129 @@ export function useCdssoAutoAuth(config?: Partial<CdssoMerkosConfig>): UseCdssoR
   }, [cdsso.isAuthenticated, cdsso.isLoading]);
 
   return cdsso;
+}
+
+// ============================================================================
+// Auto-Refresh Hook
+// ============================================================================
+
+/**
+ * Token lifecycle state for the auto-refresh hook
+ */
+export type { TokenState } from './token-lifecycle';
+export type { TokenLifecycleConfig } from './token-lifecycle';
+
+/**
+ * Return type for useCdssoAutoRefresh hook
+ */
+export interface UseCdssoAutoRefreshReturn {
+  /** Current token lifecycle state */
+  tokenState: TokenState;
+  /** Whether the token is currently valid */
+  isValid: boolean;
+  /** Whether the token is expiring soon */
+  isExpiring: boolean;
+  /** Whether a refresh is in progress */
+  isRefreshing: boolean;
+  /** Whether refresh has failed after max retries */
+  hasFailed: boolean;
+  /** Manually trigger a refresh attempt */
+  retryNow: () => Promise<string | null>;
+  /** Start the auto-refresh manager */
+  start: () => void;
+  /** Stop the auto-refresh manager */
+  stop: () => void;
+}
+
+/**
+ * useCdssoAutoRefresh hook
+ *
+ * Monitors token expiration and automatically refreshes before expiry.
+ * Includes retry logic with configurable intervals.
+ *
+ * @param config - Token lifecycle configuration
+ * @param merkosConfig - Optional Merkos CDSSO configuration
+ * @returns Token lifecycle state and controls
+ *
+ * @example
+ * ```tsx
+ * import { useCdssoAutoRefresh } from '@chabaduniverse/auth-sdk';
+ *
+ * function MyComponent() {
+ *   const { tokenState, isValid, retryNow } = useCdssoAutoRefresh({
+ *     expirationBuffer: 60,
+ *     retryInterval: 60000,
+ *   });
+ *
+ *   if (!isValid) return <p>Token: {tokenState}</p>;
+ *   return <p>Authenticated</p>;
+ * }
+ * ```
+ */
+export function useCdssoAutoRefresh(
+  config?: TokenLifecycleConfig,
+  merkosConfig?: Partial<CdssoMerkosConfig>,
+): UseCdssoAutoRefreshReturn {
+  const clientRef = useRef<CdssoClient | null>(null);
+
+  if (!clientRef.current) {
+    clientRef.current = new CdssoClient(merkosConfig);
+  }
+
+  const [tokenState, setTokenState] = useState<TokenState>('idle');
+
+  const effectiveConfig = useMemo(
+    () => ({
+      autoRefresh: true,
+      ...config,
+      onTokenStateChange: (state: TokenState) => {
+        setTokenState(state);
+        config?.onTokenStateChange?.(state);
+      },
+    }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- config is typically stable
+    []
+  );
+
+  // Start auto-refresh on mount, stop on unmount
+  useEffect(() => {
+    const client = clientRef.current;
+    if (!client) return;
+
+    client.startAutoRefresh(effectiveConfig);
+
+    return () => {
+      client.stopAutoRefresh();
+    };
+  }, [effectiveConfig]);
+
+  const retryNow = useCallback(async (): Promise<string | null> => {
+    const client = clientRef.current;
+    if (!client) return null;
+    return client.authenticate().then((user) => user ? client.getBearerToken() : null);
+  }, []);
+
+  const start = useCallback((): void => {
+    clientRef.current?.startAutoRefresh(effectiveConfig);
+  }, [effectiveConfig]);
+
+  const stop = useCallback((): void => {
+    clientRef.current?.stopAutoRefresh();
+  }, []);
+
+  return useMemo<UseCdssoAutoRefreshReturn>(
+    () => ({
+      tokenState,
+      isValid: tokenState === 'valid',
+      isExpiring: tokenState === 'expiring',
+      isRefreshing: tokenState === 'refreshing',
+      hasFailed: tokenState === 'failed',
+      retryNow,
+      start,
+      stop,
+    }),
+    [tokenState, retryNow, start, stop]
+  );
 }
 
 // ============================================================================

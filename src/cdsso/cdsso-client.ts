@@ -44,6 +44,7 @@ import {
   hasAuthCookie,
   createCdssoLogger,
 } from './cdsso-utils';
+import { TokenLifecycleManager, type TokenLifecycleConfig, type TokenState } from './token-lifecycle';
 
 // ============================================================================
 // Merkos Platform CDSSO Client
@@ -61,13 +62,24 @@ export class CdssoClient {
   private logger: ReturnType<typeof createCdssoLogger>;
   private state: CdssoState = { ...initialCdssoState };
   private listeners: Set<(state: CdssoState) => void> = new Set();
+  private lifecycleManager: TokenLifecycleManager | null = null;
 
-  constructor(config: Partial<CdssoMerkosConfig> = {}) {
-    this.config = { ...defaultMerkosConfig, ...config };
+  constructor(config: Partial<CdssoMerkosConfig> & { lifecycle?: TokenLifecycleConfig } = {}) {
+    const { lifecycle: lifecycleConfig, ...merkosConfig } = config;
+    this.config = { ...defaultMerkosConfig, ...merkosConfig };
     this.logger = createCdssoLogger(this.config);
 
     // Check for existing token on construction
     this.initializeFromStorage();
+
+    if (lifecycleConfig?.autoRefresh) {
+      this.lifecycleManager = new TokenLifecycleManager(
+        () => this.refreshToken(),
+        () => this.getBearerToken(),
+        lifecycleConfig,
+        this.config.debug,
+      );
+    }
   }
 
   /**
@@ -325,9 +337,20 @@ export class CdssoClient {
   }
 
   /**
+   * Refresh the token by performing a full CDSSO refresh cycle.
+   */
+  private async refreshToken(): Promise<string | null> {
+    const token = await this.checkRemoteSession();
+    if (!token) return null;
+    const user = await this.applyTokenToPortal(token);
+    return user ? token : null;
+  }
+
+  /**
    * Clear local session data
    */
   clearSession(): void {
+    this.lifecycleManager?.stop();
     removeToken(this.config.storageKey);
     this.updateState({
       ...initialCdssoState,
@@ -438,6 +461,40 @@ export class CdssoClient {
       token,
       isTokenStored: true,
     });
+  }
+
+  /**
+   * Start automatic token lifecycle management.
+   * Monitors token expiration and refreshes before expiry.
+   */
+  startAutoRefresh(config?: TokenLifecycleConfig): void {
+    if (this.lifecycleManager) {
+      this.lifecycleManager.stop();
+    }
+    if (!this.lifecycleManager || config) {
+      const effectiveConfig = { autoRefresh: true, ...config };
+      this.lifecycleManager = new TokenLifecycleManager(
+        () => this.refreshToken(),
+        () => this.getBearerToken(),
+        effectiveConfig,
+        this.config.debug,
+      );
+    }
+    this.lifecycleManager.start();
+  }
+
+  /**
+   * Stop automatic token lifecycle management.
+   */
+  stopAutoRefresh(): void {
+    this.lifecycleManager?.stop();
+  }
+
+  /**
+   * Get the current token lifecycle state.
+   */
+  getTokenState(): TokenState {
+    return this.lifecycleManager?.getTokenState() ?? 'idle';
   }
 }
 

@@ -381,6 +381,69 @@ setDefaultCdssoClient(customClient);
 resetDefaultCdssoClient();
 ```
 
+### Token Lifecycle Management
+
+Automatic token expiration watching, refresh, and retry.
+
+#### TokenLifecycleManager
+
+```typescript
+import { TokenLifecycleManager } from '@chabaduniverse/auth-sdk';
+
+const manager = new TokenLifecycleManager(
+  () => client.checkRemoteSession(),  // refresh function
+  () => client.getBearerToken(),       // get current token
+  { autoRefresh: true, expirationBuffer: 60, retryInterval: 60000, maxRetries: 10 },
+);
+
+manager.start();
+manager.getTokenState(); // 'valid' | 'expiring' | 'expired' | 'refreshing' | 'failed' | 'idle'
+manager.stop();
+```
+
+#### CdssoClient Auto-Refresh
+
+```typescript
+const client = new CdssoClient({
+  lifecycle: { autoRefresh: true, expirationBuffer: 60 },
+});
+
+// Or start/stop manually
+client.startAutoRefresh({ retryInterval: 30000 });
+client.getTokenState(); // TokenState
+client.stopAutoRefresh();
+```
+
+#### useCdssoAutoRefresh Hook
+
+```typescript
+import { useCdssoAutoRefresh } from '@chabaduniverse/auth-sdk';
+
+const {
+  tokenState,   // TokenState
+  isValid,      // boolean
+  isExpiring,   // boolean
+  isRefreshing, // boolean
+  hasFailed,    // boolean
+  retryNow,     // () => Promise<string | null>
+  start,        // () => void
+  stop,         // () => void
+} = useCdssoAutoRefresh({
+  expirationBuffer: 60,
+  retryInterval: 60000,
+  onTokenStateChange: (state) => console.log('Token:', state),
+});
+```
+
+| Config Option | Type | Default | Description |
+|---------------|------|---------|-------------|
+| `autoRefresh` | `boolean` | `false` | Enable automatic refresh |
+| `expirationBuffer` | `number` | `60` | Seconds before expiry to trigger refresh |
+| `retryInterval` | `number` | `60000` | Milliseconds between retry attempts |
+| `maxRetries` | `number` | `10` | Max consecutive retries before giving up |
+| `checkInterval` | `number` | `30000` | Milliseconds between expiration checks |
+| `onTokenStateChange` | `(state: TokenState) => void` | - | State change callback |
+
 ### Utility Functions
 
 ```typescript

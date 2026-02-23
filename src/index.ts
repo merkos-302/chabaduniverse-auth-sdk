@@ -70,8 +70,12 @@ export {
   // Hooks
   useCdsso,
   useCdssoAutoAuth,
+  useCdssoAutoRefresh,
   useCdssoToken,
   useCdssoUser,
+  // Token Lifecycle
+  TokenLifecycleManager,
+  defaultTokenLifecycleConfig,
   // Default values
   defaultMerkosConfig,
   defaultCrossDomainConfig,
@@ -108,6 +112,9 @@ export type {
   RemoteSessionResponse,
   PortalAuthResponse,
   UseCdssoReturn,
+  UseCdssoAutoRefreshReturn,
+  TokenState,
+  TokenLifecycleConfig,
   CDSSOConfig,
   CDSSOToken,
   CDSSOMessage,
