@@ -10,6 +10,7 @@ Technical architecture documentation for @chabaduniverse/auth-sdk.
 - [State Management](#state-management)
 - [Provider Integration](#provider-integration)
 - [CDSSO Flow](#cdsso-flow)
+- [OIDC Authentication Flow](#oidc-authentication-flow)
 - [Type System](#type-system)
 - [Build Output](#build-output)
 
@@ -329,6 +330,107 @@ export function isMerkosAvailable(
 7. Validate token expiration
 8. Refresh before expiry
 ```
+
+---
+
+## OIDC Authentication Flow
+
+The OIDC module provides a 3-step fallback authentication flow for mini apps running inside the `chabaduniverse.com` iframe. It is separate from the CDSSO flow — CDSSO is used as Step 2 *within* this flow.
+
+### 3-Step Fallback
+
+```
+┌────────────────────────────────────────────────────────────────────┐
+│                     useMerkosOIDCAuth()                            │
+│                                                                    │
+│  ┌──────────────────┐                                              │
+│  │ Iframe Detection │──── Not in iframe ──▶ Return IDLE (no-op)   │
+│  └────────┬─────────┘                                              │
+│           │ In iframe                                              │
+│           ▼                                                        │
+│  ┌──────────────────┐                                              │
+│  │ Step 1: Cache    │──── Token found + valid ──▶ Done (cached)   │
+│  │ localStorage     │                                              │
+│  └────────┬─────────┘                                              │
+│           │ miss                                                   │
+│           ▼                                                        │
+│  ┌──────────────────┐                                              │
+│  │ Step 2: CDSSO    │──── Session found ──▶ Done (cdsso)          │
+│  │ Silent Auth      │                                              │
+│  └────────┬─────────┘                                              │
+│           │ fail                                                   │
+│           ▼                                                        │
+│  ┌──────────────────┐                                              │
+│  │ Step 3: Popup    │──── reconnectMode?                          │
+│  │ Reconnect        │     ├── 'auto'   → Open popup immediately   │
+│  │                  │     └── 'manual' → Set needsReconnect=true  │
+│  └──────────────────┘                                              │
+└────────────────────────────────────────────────────────────────────┘
+```
+
+### Popup Reconnect Flow (Step 3)
+
+```
+┌─────────────┐     ┌─────────────────────┐     ┌─────────────────┐
+│  Mini App   │     │    Auth Relay        │     │  Merkos OIDC    │
+│  (iframe)   │     │  auth.chabaduniverse │     │  Server         │
+└──────┬──────┘     └──────────┬──────────┘     └────────┬────────┘
+       │                       │                         │
+       │  1. window.open()     │                         │
+       │──────────────────────▶│                         │
+       │    /merkos/reconnect  │                         │
+       │    ?origin=<app>      │                         │
+       │                       │                         │
+       │                       │  2. User clicks         │
+       │                       │     "Reconnect"         │
+       │                       │                         │
+       │                       │  3. Redirect to         │
+       │                       │─────/merkos/login──────▶│
+       │                       │     ?origin=<app>       │
+       │                       │                         │
+       │                       │  4. OIDC callback       │
+       │                       │◀────────────────────────│
+       │                       │     (token in response) │
+       │                       │                         │
+       │  5. postMessage       │                         │
+       │◀──────────────────────│                         │
+       │  { type: 'MERKOS_AUTH_TOKEN', token }           │
+       │                       │                         │
+       │  5b. BroadcastChannel │                         │
+       │◀──── (fallback) ─────│                         │
+       │                       │                         │
+       │  6. Store in          │                         │
+       │     localStorage      │                         │
+       │                       │                         │
+```
+
+### Token Delivery
+
+The auth relay callback page delivers the token back to the mini app via two channels (first one wins):
+
+1. **postMessage** — `window.opener.postMessage({ type: 'MERKOS_AUTH_TOKEN', token }, origin)` — Primary channel, validated against `expectedOrigin`.
+
+2. **BroadcastChannel** — `new BroadcastChannel('merkos_auth').postMessage(...)` — Fallback for browsers where `window.opener` is `null` (security policy).
+
+### Iframe Detection Logic
+
+```
+window.self === window.top?
+  ├── Yes → NOT in iframe → return false
+  └── No/Error → IN iframe
+       │
+       ├── ancestorOrigins available? (Chrome/Safari)
+       │   ├── Contains 'chabaduniverse.com' → return true
+       │   └── Does not contain → return false
+       │
+       ├── document.referrer available? (Firefox)
+       │   ├── Contains 'chabaduniverse.com' → return true
+       │   └── Does not contain → return false
+       │
+       └── Neither available → return true (fail-open)
+```
+
+> For complete details, see [MERKOS-OIDC-AUTH.md](./MERKOS-OIDC-AUTH.md).
 
 ---
 

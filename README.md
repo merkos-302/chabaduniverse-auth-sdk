@@ -63,6 +63,7 @@ function MyApp() {
 - **Unified Auth State** - Single hook for all auth providers
 - **Provider-Specific Access** - Direct access to Valu, Merkos, and Universe states
 - **CDSSO Support** - Cross-domain SSO out of the box
+- **OIDC Iframe Auth** - 3-step fallback authentication for iframe-embedded mini apps
 - **React Components** - Pre-built UI components (LoginButton, AuthGuard, UserMenu)
 - **TypeScript** - Full type safety with strict mode
 - **Tree-Shakeable** - Import only what you need via sub-path exports
@@ -83,6 +84,7 @@ import { CdssoClient, useCdsso } from '@chabaduniverse/auth-sdk/cdsso';
 import { UniverseAuthProvider } from '@chabaduniverse/auth-sdk/providers';
 import { useUniverseAuth } from '@chabaduniverse/auth-sdk/hooks';
 import { LoginButton, AuthGuard } from '@chabaduniverse/auth-sdk/components';
+import { useMerkosOIDCAuth } from '@chabaduniverse/auth-sdk/oidc';
 ```
 
 ## Components
@@ -201,6 +203,7 @@ const {
 | [Examples](./docs/EXAMPLES.md) | Usage examples and patterns |
 | [Migration Guide](./docs/MIGRATION.md) | Migrating from existing auth |
 | [Architecture](./docs/ARCHITECTURE.md) | Technical architecture |
+| [OIDC Auth Guide](./docs/MERKOS-OIDC-AUTH.md) | 3-step iframe auth flow & integration |
 
 ## Development
 

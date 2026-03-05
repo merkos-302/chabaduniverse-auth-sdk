@@ -9,6 +9,7 @@ export default defineConfig({
     'cdsso/index': 'src/cdsso/index.ts',
     'merkos/index': 'src/merkos/index.ts',
     'valu/index': 'src/valu/index.ts',
+    'oidc/index': 'src/oidc/index.ts',
   },
   format: ['esm', 'cjs'],
   dts: true,

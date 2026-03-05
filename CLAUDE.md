@@ -64,6 +64,12 @@ src/
 │   ├── merkos-utils.ts             # Merkos utilities
 │   ├── merkos-types.ts             # Merkos types
 │   └── index.ts
+├── oidc/
+│   ├── types.ts                    # OIDC types & constants
+│   ├── popup-auth.ts               # Popup auth utility (internal)
+│   ├── useMerkosOIDC.ts            # Step 3 popup primitive hook
+│   ├── useMerkosAuth.ts            # 3-step fallback orchestrator
+│   └── index.ts
 ├── types/
 │   ├── user.ts                     # User types
 │   ├── providers.ts                # Provider types
@@ -103,7 +109,7 @@ pnpm type-check       # TypeScript check
 
 ## Testing Strategy
 
-- **363 tests passing** across 14 test files
+- **394 tests passing** across 17 test files
 - Unit tests for hooks and utilities
 - Integration tests for provider interactions
 - Mock implementations for both Valu and Merkos APIs
@@ -124,6 +130,9 @@ pnpm type-check       # TypeScript check
 | ValuProvider | 15 | Valu context provider |
 | hooks | 18 | Unified auth hooks |
 | components | 15 | UI components |
+| popup-auth | 10 | OIDC popup auth utility |
+| useMerkosOIDC | 8 | OIDC popup primitive hook |
+| useMerkosAuth (oidc) | 13 | 3-step fallback orchestrator |
 | integration | 13 | Full auth flow |
 | UniverseAuthProvider | 5 | Main provider |
 
