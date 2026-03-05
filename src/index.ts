@@ -169,6 +169,30 @@ export type {
 } from './merkos';
 
 // ============================================================================
+// OIDC Module (Merkos OIDC 3-step fallback)
+// ============================================================================
+
+export {
+  useMerkosOIDCAuth,
+  useMerkosOIDC,
+  MERKOS_AUTH_MESSAGE_TYPE,
+  DEFAULT_AUTH_URL,
+  DEFAULT_RECONNECT_URL,
+  DEFAULT_STORAGE_KEY,
+  BROADCAST_CHANNEL_NAME,
+} from './oidc';
+
+export type {
+  MerkosAuthTokenMessage,
+  MerkosAuthMethod,
+  MerkosReconnectMode,
+  UseMerkosOIDCOptions,
+  UseMerkosOIDCReturn,
+  UseMerkosAuthOptions,
+  UseMerkosAuthReturn,
+} from './oidc';
+
+// ============================================================================
 // Valu Module
 // ============================================================================
 

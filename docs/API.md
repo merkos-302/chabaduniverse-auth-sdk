@@ -9,6 +9,7 @@ Complete API documentation for @chabaduniverse/auth-sdk.
 - [Components](#components)
 - [CDSSO Module](#cdsso-module)
 - [Merkos Module](#merkos-module)
+- [OIDC Module](#oidc-module)
 - [Valu Module](#valu-module)
   - [Early Message Buffer](#early-message-buffer)
 - [Types](#types)
@@ -507,6 +508,125 @@ import {
   storeBearerToken,
   removeBearerToken,
 } from '@chabaduniverse/auth-sdk';
+```
+
+---
+
+## OIDC Module
+
+Merkos OIDC authentication for sibling apps inside Chabad Universe iframes. Provides a 3-step fallback: localStorage cache → CDSSO → popup reconnect.
+
+> For a full walkthrough and integration guide, see [MERKOS-OIDC-AUTH.md](./MERKOS-OIDC-AUTH.md).
+
+### useMerkosOIDCAuth
+
+The primary hook — orchestrates the 3-step fallback flow. Alias: `useMerkosAuth` (from `@chabaduniverse/auth-sdk/oidc`).
+
+```tsx
+import { useMerkosOIDCAuth } from '@chabaduniverse/auth-sdk/oidc';
+
+const {
+  token,            // string | null
+  isAuthenticating, // boolean
+  isAuthenticated,  // boolean
+  method,           // 'cached' | 'cdsso' | 'popup' | null
+  error,            // string | null
+  needsReconnect,   // boolean
+  isIframe,         // boolean
+  login,            // () => void
+  logout,           // () => void
+  reconnect,        // () => void
+} = useMerkosOIDCAuth({
+  storageKey: 'merkos_auth_token',
+  reconnectMode: 'auto',
+  reconnectUrl: 'https://auth.chabaduniverse.com/merkos/reconnect',
+  expectedOrigin: 'https://auth.chabaduniverse.com',
+  onAuthenticated: (token, method) => console.log(method),
+  debug: false,
+  forceEnabled: false,
+});
+```
+
+#### UseMerkosAuthOptions
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `storageKey` | `string` | `'merkos_auth_token'` | localStorage key for the JWT |
+| `reconnectMode` | `'auto' \| 'manual'` | `'auto'` | `'auto'` opens popup immediately; `'manual'` sets `needsReconnect` |
+| `reconnectUrl` | `string` | `'https://auth.chabaduniverse.com/merkos/reconnect'` | Popup URL for Step 3 |
+| `expectedOrigin` | `string` | Derived from `reconnectUrl` | Origin for postMessage validation |
+| `onAuthenticated` | `(token: string, method: MerkosAuthMethod) => void` | — | Called on auth success |
+| `debug` | `boolean` | `false` | Enable console debug logging |
+| `forceEnabled` | `boolean` | `false` | Bypass iframe detection (for development) |
+
+#### UseMerkosAuthReturn
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `token` | `string \| null` | Current JWT token |
+| `isAuthenticating` | `boolean` | Fallback flow in progress |
+| `isAuthenticated` | `boolean` | `token !== null` |
+| `method` | `MerkosAuthMethod \| null` | How the token was obtained |
+| `error` | `string \| null` | Error message, if any |
+| `needsReconnect` | `boolean` | True when manual reconnect is needed |
+| `isIframe` | `boolean` | Whether a qualifying iframe was detected |
+| `login` | `() => void` | Re-run the 3-step fallback |
+| `logout` | `() => void` | Clear token and reset state |
+| `reconnect` | `() => void` | Open the reconnect popup manually |
+
+### useMerkosOIDC
+
+Low-level hook that wraps the popup auth utility. Provides `login()` and `isOpen` for opening the Merkos OIDC popup directly.
+
+```tsx
+import { useMerkosOIDC } from '@chabaduniverse/auth-sdk/oidc';
+
+const { login, isOpen } = useMerkosOIDC({
+  authUrl: 'https://auth.chabaduniverse.com/merkos/login',
+  expectedOrigin: 'https://auth.chabaduniverse.com',
+  storageKey: 'merkos_auth_token',
+});
+```
+
+#### UseMerkosOIDCOptions
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `authUrl` | `string` | `'https://auth.chabaduniverse.com/merkos/login'` | URL for the auth popup |
+| `expectedOrigin` | `string` | Derived from `authUrl` | Origin for postMessage validation |
+| `storageKey` | `string` | `'merkos_auth_token'` | localStorage key for the token |
+
+#### UseMerkosOIDCReturn
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `login` | `() => void` | Open the auth popup |
+| `isOpen` | `boolean` | Whether the popup is currently open |
+
+### Constants
+
+```typescript
+import {
+  MERKOS_AUTH_MESSAGE_TYPE,  // 'MERKOS_AUTH_TOKEN'
+  DEFAULT_AUTH_URL,          // 'https://auth.chabaduniverse.com/merkos/login'
+  DEFAULT_RECONNECT_URL,     // 'https://auth.chabaduniverse.com/merkos/reconnect'
+  DEFAULT_STORAGE_KEY,       // 'merkos_auth_token'
+  BROADCAST_CHANNEL_NAME,    // 'merkos_auth'
+} from '@chabaduniverse/auth-sdk/oidc';
+```
+
+### Types
+
+```typescript
+import type {
+  MerkosAuthTokenMessage,  // { type: 'MERKOS_AUTH_TOKEN'; token: string }
+  MerkosAuthMethod,        // 'cached' | 'cdsso' | 'popup'
+  MerkosReconnectMode,     // 'auto' | 'manual'
+  UseMerkosOIDCOptions,
+  UseMerkosOIDCReturn,
+  UseMerkosAuthOptions,
+  UseMerkosAuthReturn,
+} from '@chabaduniverse/auth-sdk/oidc';
 ```
 
 ---

@@ -9,6 +9,7 @@ Practical examples for using @chabaduniverse/auth-sdk.
 - [Protected Routes](#protected-routes)
 - [User Interface](#user-interface)
 - [Provider-Specific Features](#provider-specific-features)
+- [Merkos OIDC Authentication](#merkos-oidc-authentication)
 - [Valu API Race Condition](#valu-api-race-condition)
 - [Error Handling](#error-handling)
 - [Testing](#testing)
@@ -506,6 +507,157 @@ function CdssoManager() {
       <button onClick={forceReauth}>Re-authenticate</button>
       <button onClick={checkSession}>Check Session</button>
     </div>
+  );
+}
+```
+
+---
+
+## Merkos OIDC Authentication
+
+Authentication for mini apps running inside the `chabaduniverse.com` iframe. The `useMerkosOIDCAuth` hook handles a 3-step fallback: localStorage cache → CDSSO → popup reconnect.
+
+> For a full walkthrough, see [MERKOS-OIDC-AUTH.md](./MERKOS-OIDC-AUTH.md).
+
+### Minimal Setup
+
+```tsx
+import { useMerkosOIDCAuth } from '@chabaduniverse/auth-sdk/oidc';
+
+function MiniApp() {
+  const { token, isAuthenticated, isAuthenticating } = useMerkosOIDCAuth();
+
+  if (isAuthenticating) return <p>Authenticating...</p>;
+  if (!isAuthenticated) return <p>Not authenticated</p>;
+
+  return <p>Authenticated! Token: {token?.slice(0, 20)}...</p>;
+}
+```
+
+### Full Integration with UI
+
+```tsx
+import { useMerkosOIDCAuth } from '@chabaduniverse/auth-sdk/oidc';
+
+function MiniApp() {
+  const {
+    token,
+    isAuthenticated,
+    isAuthenticating,
+    needsReconnect,
+    method,
+    error,
+    isIframe,
+    login,
+    logout,
+    reconnect,
+  } = useMerkosOIDCAuth({
+    reconnectMode: 'manual',
+    debug: true,
+    onAuthenticated: (token, method) => {
+      console.log(`Authenticated via ${method}`);
+      fetch('/api/auth', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+    },
+  });
+
+  if (!isIframe) {
+    return <p>This app must be accessed through ChabadUniverse.</p>;
+  }
+
+  if (isAuthenticating) {
+    return <div>Signing you in...</div>;
+  }
+
+  if (error) {
+    return (
+      <div>
+        <p>Authentication failed: {error}</p>
+        <button onClick={login}>Try Again</button>
+      </div>
+    );
+  }
+
+  if (needsReconnect) {
+    return (
+      <div>
+        <p>Your session has expired.</p>
+        <button onClick={reconnect}>Reconnect to Merkos</button>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return <button onClick={login}>Sign In</button>;
+  }
+
+  return (
+    <div>
+      <p>Authenticated via: {method}</p>
+      <button onClick={logout}>Sign Out</button>
+    </div>
+  );
+}
+```
+
+### Auto Reconnect Mode
+
+```tsx
+import { useMerkosOIDCAuth } from '@chabaduniverse/auth-sdk/oidc';
+
+function AutoAuthApp() {
+  const { isAuthenticated, isAuthenticating, token } = useMerkosOIDCAuth({
+    reconnectMode: 'auto', // popup opens automatically if needed
+    onAuthenticated: (token) => {
+      apiClient.setToken(token);
+    },
+  });
+
+  if (isAuthenticating) return <p>Please wait...</p>;
+  if (!isAuthenticated) return <p>Authentication failed.</p>;
+
+  return <Dashboard token={token!} />;
+}
+```
+
+### Local Development
+
+```tsx
+import { useMerkosOIDCAuth } from '@chabaduniverse/auth-sdk/oidc';
+
+function DevApp() {
+  const auth = useMerkosOIDCAuth({
+    forceEnabled: process.env.NODE_ENV === 'development',
+    reconnectUrl: 'http://localhost:3001/merkos/reconnect',
+    debug: true,
+  });
+
+  return (
+    <div>
+      <pre>{JSON.stringify(auth, null, 2)}</pre>
+    </div>
+  );
+}
+```
+
+### Using the Low-Level useMerkosOIDC Hook
+
+For direct popup control without the 3-step fallback:
+
+```tsx
+import { useMerkosOIDC } from '@chabaduniverse/auth-sdk/oidc';
+
+function DirectPopupLogin() {
+  const { login, isOpen } = useMerkosOIDC({
+    authUrl: 'https://auth.chabaduniverse.com/merkos/login',
+  });
+
+  return (
+    <button onClick={login} disabled={isOpen}>
+      {isOpen ? 'Signing in...' : 'Sign In with Merkos'}
+    </button>
   );
 }
 ```
