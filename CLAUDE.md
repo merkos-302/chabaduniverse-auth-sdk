@@ -109,7 +109,7 @@ pnpm type-check       # TypeScript check
 
 ## Testing Strategy
 
-- **394 tests passing** across 17 test files
+- **398 tests passing** across 17 test files
 - Unit tests for hooks and utilities
 - Integration tests for provider interactions
 - Mock implementations for both Valu and Merkos APIs
@@ -132,7 +132,7 @@ pnpm type-check       # TypeScript check
 | components | 15 | UI components |
 | popup-auth | 10 | OIDC popup auth utility |
 | useMerkosOIDC | 8 | OIDC popup primitive hook |
-| useMerkosAuth (oidc) | 13 | 3-step fallback orchestrator |
+| useMerkosAuth (oidc) | 17 | 3-step fallback orchestrator |
 | integration | 13 | Full auth flow |
 | UniverseAuthProvider | 5 | Main provider |
 

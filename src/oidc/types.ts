@@ -85,7 +85,9 @@ export interface UseMerkosAuthOptions {
   storageKey?: string;
   /** How to handle Step 3: 'auto' opens popup automatically, 'manual' sets needsReconnect */
   reconnectMode?: MerkosReconnectMode;
-  /** URL for the reconnect popup (Step 3) */
+  /** URL for the auth login popup (defaults to production auth relay) */
+  authUrl?: string;
+  /** URL for the reconnect popup (Step 3 manual reconnect) */
   reconnectUrl?: string;
   /** Expected origin for postMessage validation */
   expectedOrigin?: string;

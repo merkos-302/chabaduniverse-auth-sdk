@@ -539,6 +539,7 @@ const {
 } = useMerkosOIDCAuth({
   storageKey: 'merkos_auth_token',
   reconnectMode: 'auto',
+  authUrl: 'https://auth.chabaduniverse.com/merkos/login',
   reconnectUrl: 'https://auth.chabaduniverse.com/merkos/reconnect',
   expectedOrigin: 'https://auth.chabaduniverse.com',
   onAuthenticated: (token, method) => console.log(method),
@@ -553,8 +554,9 @@ const {
 |--------|------|---------|-------------|
 | `storageKey` | `string` | `'merkos_auth_token'` | localStorage key for the JWT |
 | `reconnectMode` | `'auto' \| 'manual'` | `'auto'` | `'auto'` opens popup immediately; `'manual'` sets `needsReconnect` |
-| `reconnectUrl` | `string` | `'https://auth.chabaduniverse.com/merkos/reconnect'` | Popup URL for Step 3 |
-| `expectedOrigin` | `string` | Derived from `reconnectUrl` | Origin for postMessage validation |
+| `authUrl` | `string` | `'https://auth.chabaduniverse.com/merkos/login'` | URL for the auth login popup (Step 3 auto) |
+| `reconnectUrl` | `string` | `'https://auth.chabaduniverse.com/merkos/reconnect'` | URL for the reconnect popup (Step 3 manual) |
+| `expectedOrigin` | `string` | Derived from `authUrl` / `reconnectUrl` | Origin for postMessage validation. If set, overrides both auth and reconnect origins |
 | `onAuthenticated` | `(token: string, method: MerkosAuthMethod) => void` | — | Called on auth success |
 | `debug` | `boolean` | `false` | Enable console debug logging |
 | `forceEnabled` | `boolean` | `false` | Bypass iframe detection (for development) |
