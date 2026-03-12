@@ -17,6 +17,7 @@ import { getDefaultCdssoClient } from '../cdsso/cdsso-client';
 import { openAuthPopup } from './popup-auth';
 import {
   DEFAULT_STORAGE_KEY,
+  DEFAULT_AUTH_URL,
   DEFAULT_RECONNECT_URL,
   type UseMerkosAuthOptions,
   type UseMerkosAuthReturn,
@@ -89,12 +90,17 @@ export function useMerkosAuth(options: UseMerkosAuthOptions = {}): UseMerkosAuth
   const {
     storageKey = DEFAULT_STORAGE_KEY,
     reconnectMode = 'auto',
+    authUrl = DEFAULT_AUTH_URL,
     reconnectUrl = DEFAULT_RECONNECT_URL,
-    expectedOrigin = new URL(reconnectUrl).origin,
+    expectedOrigin,
     onAuthenticated,
     debug = false,
     forceEnabled = false,
   } = options;
+
+  // Derive per-URL origins; explicit expectedOrigin overrides both
+  const authExpectedOrigin = expectedOrigin ?? new URL(authUrl).origin;
+  const reconnectExpectedOrigin = expectedOrigin ?? new URL(reconnectUrl).origin;
 
   // Iframe guard — computed once on client mount (SSR always returns false)
   const [isIframe, setIsIframe] = useState(false);
@@ -170,8 +176,8 @@ export function useMerkosAuth(options: UseMerkosAuthOptions = {}): UseMerkosAuth
         return;
       }
 
-      // Auto mode — open popup
-      await openPopupAndWait();
+      // Auto mode — open login popup
+      await openPopupAndWait(authUrl, authExpectedOrigin);
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Authentication failed';
       if (msg !== 'popup_closed') {
@@ -180,12 +186,12 @@ export function useMerkosAuth(options: UseMerkosAuthOptions = {}): UseMerkosAuth
       setIsAuthenticating(false);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [storageKey, reconnectMode, reconnectUrl, expectedOrigin, debug]);
+  }, [storageKey, reconnectMode, authUrl, authExpectedOrigin, reconnectUrl, reconnectExpectedOrigin, debug]);
 
   // ---- Popup helper ----
-  const openPopupAndWait = useCallback(async () => {
+  const openPopupAndWait = useCallback(async (popupUrl: string, popupOrigin: string) => {
     cleanupRef.current?.();
-    const { promise, cleanup } = openAuthPopup(reconnectUrl, expectedOrigin, storageKey);
+    const { promise, cleanup } = openAuthPopup(popupUrl, popupOrigin, storageKey);
     cleanupRef.current = cleanup;
 
     try {
@@ -202,7 +208,7 @@ export function useMerkosAuth(options: UseMerkosAuthOptions = {}): UseMerkosAuth
     }
     cleanupRef.current = null;
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [reconnectUrl, expectedOrigin, storageKey, debug]);
+  }, [storageKey, debug]);
 
   // ---- Public actions ----
   const login = useCallback(() => {
@@ -224,14 +230,14 @@ export function useMerkosAuth(options: UseMerkosAuthOptions = {}): UseMerkosAuth
     setNeedsReconnect(false);
     setIsAuthenticating(true);
     setError(null);
-    openPopupAndWait().catch((err) => {
+    openPopupAndWait(reconnectUrl, reconnectExpectedOrigin).catch((err) => {
       const msg = err instanceof Error ? err.message : 'Reconnect failed';
       if (msg !== 'popup_closed') {
         setError(msg);
       }
       setIsAuthenticating(false);
     });
-  }, [openPopupAndWait]);
+  }, [openPopupAndWait, reconnectUrl, reconnectExpectedOrigin]);
 
   // ---- Auto-run once iframe is detected ----
   useEffect(() => {

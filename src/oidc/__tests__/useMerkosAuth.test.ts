@@ -47,7 +47,7 @@ function getMockCdssoClient() {
 
 describe('useMerkosAuth', () => {
   const MOCK_TOKEN = 'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.test.sig';
-  const RECONNECT_URL = 'https://auth.chabaduniverse.com/merkos/reconnect';
+  const AUTH_URL = 'https://auth.chabaduniverse.com/merkos/login';
 
   let mockCleanup: ReturnType<typeof vi.fn>;
   let resolvePopup: (value: string) => void;
@@ -224,8 +224,9 @@ describe('useMerkosAuth', () => {
       await new Promise((r) => setTimeout(r, 0));
     });
 
+    // Step 3 auto uses authUrl (login), not reconnectUrl
     expect(popupAuth.openAuthPopup).toHaveBeenCalledWith(
-      RECONNECT_URL,
+      AUTH_URL,
       'https://auth.chabaduniverse.com',
       'merkos_auth_token',
     );
@@ -294,6 +295,131 @@ describe('useMerkosAuth', () => {
     expect(result.current.token).toBe('reconnect-token');
     expect(result.current.method).toBe('popup');
     expect(result.current.needsReconnect).toBe(false);
+  });
+
+  // ========================================================================
+  // authUrl option
+  // ========================================================================
+
+  it('should use custom authUrl for Step 3 auto popup', async () => {
+    (cdssoUtils.getStoredToken as ReturnType<typeof vi.fn>).mockReturnValue(null);
+
+    const mockClient = getMockCdssoClient();
+    mockClient.authenticate.mockResolvedValue(null);
+
+    const customAuthUrl = 'https://test-auth.chabaduniverse.com/merkos/login';
+
+    renderHook(() =>
+      useMerkosAuth({ reconnectMode: 'auto', authUrl: customAuthUrl }),
+    );
+
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 0));
+    });
+
+    expect(popupAuth.openAuthPopup).toHaveBeenCalledWith(
+      customAuthUrl,
+      'https://test-auth.chabaduniverse.com',
+      'merkos_auth_token',
+    );
+  });
+
+  it('should use reconnectUrl (not authUrl) for manual reconnect popup', async () => {
+    (cdssoUtils.getStoredToken as ReturnType<typeof vi.fn>).mockReturnValue(null);
+
+    const mockClient = getMockCdssoClient();
+    mockClient.authenticate.mockResolvedValue(null);
+
+    const customAuthUrl = 'https://test-auth.chabaduniverse.com/merkos/login';
+    const customReconnectUrl = 'https://test-auth.chabaduniverse.com/merkos/reconnect';
+
+    const { result } = renderHook(() =>
+      useMerkosAuth({
+        reconnectMode: 'manual',
+        authUrl: customAuthUrl,
+        reconnectUrl: customReconnectUrl,
+      }),
+    );
+
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 0));
+    });
+
+    expect(result.current.needsReconnect).toBe(true);
+    expect(popupAuth.openAuthPopup).not.toHaveBeenCalled();
+
+    act(() => {
+      result.current.reconnect();
+    });
+
+    expect(popupAuth.openAuthPopup).toHaveBeenCalledWith(
+      customReconnectUrl,
+      'https://test-auth.chabaduniverse.com',
+      'merkos_auth_token',
+    );
+  });
+
+  it('should derive expectedOrigin from authUrl and reconnectUrl independently', async () => {
+    (cdssoUtils.getStoredToken as ReturnType<typeof vi.fn>).mockReturnValue(null);
+
+    const mockClient = getMockCdssoClient();
+    mockClient.authenticate.mockResolvedValue(null);
+
+    // Different hosts for auth vs reconnect
+    const customAuthUrl = 'https://auth-a.example.com/login';
+    const customReconnectUrl = 'https://auth-b.example.com/reconnect';
+
+    const { result } = renderHook(() =>
+      useMerkosAuth({
+        reconnectMode: 'manual',
+        authUrl: customAuthUrl,
+        reconnectUrl: customReconnectUrl,
+      }),
+    );
+
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 0));
+    });
+
+    // Step 3 auto didn't fire (manual mode), trigger reconnect
+    act(() => {
+      result.current.reconnect();
+    });
+
+    // reconnect should use reconnectUrl's origin
+    expect(popupAuth.openAuthPopup).toHaveBeenCalledWith(
+      customReconnectUrl,
+      'https://auth-b.example.com',
+      'merkos_auth_token',
+    );
+  });
+
+  it('should use explicit expectedOrigin for both auth and reconnect popups', async () => {
+    (cdssoUtils.getStoredToken as ReturnType<typeof vi.fn>).mockReturnValue(null);
+
+    const mockClient = getMockCdssoClient();
+    mockClient.authenticate.mockResolvedValue(null);
+
+    const customOrigin = 'https://custom-origin.example.com';
+
+    renderHook(() =>
+      useMerkosAuth({
+        reconnectMode: 'auto',
+        authUrl: 'https://test-auth.chabaduniverse.com/merkos/login',
+        expectedOrigin: customOrigin,
+      }),
+    );
+
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 0));
+    });
+
+    // Auth popup should use the explicit expectedOrigin, not derived from authUrl
+    expect(popupAuth.openAuthPopup).toHaveBeenCalledWith(
+      'https://test-auth.chabaduniverse.com/merkos/login',
+      customOrigin,
+      'merkos_auth_token',
+    );
   });
 
   // ========================================================================

@@ -167,7 +167,7 @@ Outside an iframe, the hook returns an idle no-op object — all values are null
 
 ### Origin Validation
 
-- **postMessage** — The `message` event listener checks `event.origin` against `expectedOrigin` (derived from `reconnectUrl`). Messages from other origins are silently dropped.
+- **postMessage** — The `message` event listener checks `event.origin` against the expected origin (derived from `authUrl` for login popups, `reconnectUrl` for reconnect popups, or an explicit `expectedOrigin` override). Messages from other origins are silently dropped.
 
 - **Popup URL** — The popup URL has the caller's `window.location.origin` appended as a query parameter (`?origin=`), so the auth relay can validate the callback target.
 
@@ -309,8 +309,9 @@ All fields on `UseMerkosAuthOptions`:
 |--------|------|---------|-------------|
 | `storageKey` | `string` | `'merkos_auth_token'` | localStorage key for the JWT token |
 | `reconnectMode` | `'auto' \| 'manual'` | `'auto'` | How Step 3 is handled. `'auto'` opens the popup immediately; `'manual'` sets `needsReconnect: true` and waits for `reconnect()` |
-| `reconnectUrl` | `string` | `'https://auth.chabaduniverse.com/merkos/reconnect'` | URL opened in the Step 3 popup |
-| `expectedOrigin` | `string` | Derived from `reconnectUrl` | Origin to validate postMessage responses against |
+| `authUrl` | `string` | `'https://auth.chabaduniverse.com/merkos/login'` | URL for the auth login popup (used by Step 3 auto mode). Override for test environments |
+| `reconnectUrl` | `string` | `'https://auth.chabaduniverse.com/merkos/reconnect'` | URL for the reconnect popup (used by manual `reconnect()`) |
+| `expectedOrigin` | `string` | Derived per-URL from `authUrl` / `reconnectUrl` | Origin to validate postMessage responses against. If set explicitly, overrides both auth and reconnect origins |
 | `onAuthenticated` | `(token: string, method: MerkosAuthMethod) => void` | — | Callback fired when authentication succeeds (any step) |
 | `debug` | `boolean` | `false` | Enable `[MerkosAuth]` debug logging to console |
 | `forceEnabled` | `boolean` | `false` | Bypass iframe detection. Use for local development/testing |
@@ -365,7 +366,8 @@ When developing locally, your app isn't in a `chabaduniverse.com` iframe, so the
 useMerkosOIDCAuth({
   forceEnabled: process.env.NODE_ENV === 'development',
   debug: true,
-  // Point to your local auth relay if needed
+  // Point to your local or test auth relay
+  authUrl: 'http://localhost:3001/merkos/login',
   reconnectUrl: 'http://localhost:3001/merkos/reconnect',
 });
 ```
@@ -445,8 +447,8 @@ if (error) {
 **Cause:** Origin mismatch. The postMessage from the auth relay is being rejected because `event.origin` doesn't match `expectedOrigin`.
 
 **Fix:**
-- Check that `reconnectUrl` points to the correct auth relay
-- If using a custom auth relay URL, set `expectedOrigin` explicitly
+- Check that `authUrl` and `reconnectUrl` point to the correct auth relay
+- If using a custom auth relay URL, verify that origins match or set `expectedOrigin` explicitly
 - Verify the auth relay callback is sending `postMessage` to the correct origin
 
 ### CDSSO always fails (Step 2 skipped)

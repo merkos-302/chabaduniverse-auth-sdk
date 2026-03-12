@@ -630,6 +630,7 @@ import { useMerkosOIDCAuth } from '@chabaduniverse/auth-sdk/oidc';
 function DevApp() {
   const auth = useMerkosOIDCAuth({
     forceEnabled: process.env.NODE_ENV === 'development',
+    authUrl: 'http://localhost:3001/merkos/login',
     reconnectUrl: 'http://localhost:3001/merkos/reconnect',
     debug: true,
   });
