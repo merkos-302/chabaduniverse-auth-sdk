@@ -179,6 +179,8 @@ export {
   DEFAULT_AUTH_URL,
   DEFAULT_RECONNECT_URL,
   DEFAULT_STORAGE_KEY,
+  DEFAULT_ENVIRONMENT,
+  ENVIRONMENT_URLS,
   BROADCAST_CHANNEL_NAME,
 } from './oidc';
 
@@ -186,6 +188,7 @@ export type {
   MerkosAuthTokenMessage,
   MerkosAuthMethod,
   MerkosReconnectMode,
+  MerkosEnvironment,
   UseMerkosOIDCOptions,
   UseMerkosOIDCReturn,
   UseMerkosAuthOptions,

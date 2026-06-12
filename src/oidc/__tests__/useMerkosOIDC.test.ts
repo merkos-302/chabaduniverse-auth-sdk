@@ -144,3 +144,106 @@ describe('useMerkosOIDC', () => {
     );
   });
 });
+
+// ============================================================================
+// environment param (CU-889 Phase 1)
+// ============================================================================
+
+describe('useMerkosOIDC – environment param (CU-889)', () => {
+  let warnSpy: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    const { __resetDeprecationWarnings } = await import('../deprecation');
+    __resetDeprecationWarnings();
+    warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    (popupAuth.openAuthPopup as ReturnType<typeof vi.fn>).mockImplementation(() => ({
+      promise: new Promise(() => {}),
+      cleanup: vi.fn(),
+    }));
+  });
+
+  afterEach(() => {
+    warnSpy.mockRestore();
+    vi.restoreAllMocks();
+  });
+
+  it('defaults to production URL when no environment is supplied', () => {
+    const { result } = renderHook(() => useMerkosOIDC());
+    act(() => {
+      result.current.login();
+    });
+
+    expect(popupAuth.openAuthPopup).toHaveBeenCalledWith(
+      'https://auth.chabaduniverse.com/merkos/login',
+      'https://auth.chabaduniverse.com',
+      'merkos_auth_token',
+    );
+    expect(warnSpy).not.toHaveBeenCalled();
+  });
+
+  it('routes to staging URL when environment=staging', () => {
+    const { result } = renderHook(() => useMerkosOIDC({ environment: 'staging' }));
+    act(() => {
+      result.current.login();
+    });
+
+    expect(popupAuth.openAuthPopup).toHaveBeenCalledWith(
+      'https://test-auth.chabaduniverse.com/merkos/login',
+      'https://test-auth.chabaduniverse.com',
+      'merkos_auth_token',
+    );
+    expect(warnSpy).not.toHaveBeenCalled();
+  });
+
+  it('falls back to production AND warns once when environment is an unknown string', () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { result, rerender } = renderHook(
+      ({ env }: { env: string }) =>
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        useMerkosOIDC({ environment: env as any }),
+      { initialProps: { env: 'prod' } },
+    );
+    act(() => {
+      result.current.login();
+    });
+
+    // Falls back to production URLs, no crash
+    expect(popupAuth.openAuthPopup).toHaveBeenCalledWith(
+      'https://auth.chabaduniverse.com/merkos/login',
+      'https://auth.chabaduniverse.com',
+      'merkos_auth_token',
+    );
+
+    // Re-render with another invalid value — still only one warning total
+    rerender({ env: 'development' });
+    act(() => {
+      result.current.login();
+    });
+
+    const invalidWarnings = warnSpy.mock.calls.filter((c) =>
+      String(c[0]).includes('Invalid `environment`'),
+    );
+    expect(invalidWarnings).toHaveLength(1);
+  });
+
+  it('explicit authUrl overrides environment AND emits one deprecation warning', () => {
+    const customUrl = 'https://override.example.com/login';
+    const { result } = renderHook(() =>
+      useMerkosOIDC({ environment: 'staging', authUrl: customUrl }),
+    );
+    act(() => {
+      result.current.login();
+    });
+
+    expect(popupAuth.openAuthPopup).toHaveBeenCalledWith(
+      customUrl,
+      'https://override.example.com',
+      'merkos_auth_token',
+    );
+    expect(warnSpy).toHaveBeenCalledTimes(1);
+    expect(warnSpy.mock.calls[0]?.[0]).toContain('authUrl');
+    expect(warnSpy.mock.calls[0]?.[0]).toContain('deprecated');
+  });
+});

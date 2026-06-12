@@ -13,11 +13,49 @@
 /** PostMessage type for Merkos auth token messages */
 export const MERKOS_AUTH_MESSAGE_TYPE = 'MERKOS_AUTH_TOKEN' as const;
 
-/** Default auth popup URL */
-export const DEFAULT_AUTH_URL = 'https://auth.chabaduniverse.com/merkos/login' as const;
+/**
+ * Environment names the SDK accepts for the `environment` option.
+ *
+ * Phase 1 (CU-889): both environments route to the auth-relay. Phase 3
+ * (blocked on CU-890) will flip the URLs to cu-oidc-provider endpoints.
+ */
+export type MerkosEnvironment = 'production' | 'staging';
 
-/** Default reconnect popup URL */
-export const DEFAULT_RECONNECT_URL = 'https://auth.chabaduniverse.com/merkos/reconnect' as const;
+/**
+ * Canonical URLs the SDK uses per environment.
+ *
+ * Phase 1 (CU-889): staging mirrors production against the staging auth-relay
+ * (`test-auth.chabaduniverse.com`). Phase 3 will flip both production and
+ * staging to point at `id.chabaduniverse.com` / `staging.id.chabaduniverse.com`
+ * once CU-890 ships `/oidc/reconnect` on cu-oidc-provider.
+ */
+export const ENVIRONMENT_URLS = {
+  production: {
+    auth: 'https://auth.chabaduniverse.com/merkos/login',
+    reconnect: 'https://auth.chabaduniverse.com/merkos/reconnect',
+  },
+  staging: {
+    auth: 'https://test-auth.chabaduniverse.com/merkos/login',
+    reconnect: 'https://test-auth.chabaduniverse.com/merkos/reconnect',
+  },
+} as const satisfies Record<MerkosEnvironment, { auth: string; reconnect: string }>;
+
+/** Default environment when none is supplied. */
+export const DEFAULT_ENVIRONMENT: MerkosEnvironment = 'production';
+
+/**
+ * Default auth popup URL.
+ * @deprecated Use the `environment` option on `useMerkosAuth` / `useMerkosOIDC` instead.
+ *   Retained for back-compat; will be removed in a future major version.
+ */
+export const DEFAULT_AUTH_URL = ENVIRONMENT_URLS.production.auth;
+
+/**
+ * Default reconnect popup URL.
+ * @deprecated Use the `environment` option on `useMerkosAuth` / `useMerkosOIDC` instead.
+ *   Retained for back-compat; will be removed in a future major version.
+ */
+export const DEFAULT_RECONNECT_URL = ENVIRONMENT_URLS.production.reconnect;
 
 /** Default localStorage key for the token */
 export const DEFAULT_STORAGE_KEY = 'merkos_auth_token' as const;
@@ -55,7 +93,16 @@ export type MerkosReconnectMode = 'auto' | 'manual';
  * Options for useMerkosOIDC hook
  */
 export interface UseMerkosOIDCOptions {
-  /** URL to open in the popup */
+  /**
+   * Environment to route the popup to. Defaults to `'production'`.
+   * Ignored if an explicit `authUrl` is supplied.
+   */
+  environment?: MerkosEnvironment;
+  /**
+   * URL to open in the popup.
+   * @deprecated Use `environment` instead. When set, overrides `environment` and
+   *   emits a one-time deprecation warning.
+   */
   authUrl?: string;
   /** Expected origin for postMessage validation */
   expectedOrigin?: string;
@@ -85,9 +132,22 @@ export interface UseMerkosAuthOptions {
   storageKey?: string;
   /** How to handle Step 3: 'auto' opens popup automatically, 'manual' sets needsReconnect */
   reconnectMode?: MerkosReconnectMode;
-  /** URL for the auth login popup (defaults to production auth relay) */
+  /**
+   * Environment to route auth + reconnect popups to. Defaults to `'production'`.
+   * Ignored for whichever URL is explicitly supplied via `authUrl` / `reconnectUrl`.
+   */
+  environment?: MerkosEnvironment;
+  /**
+   * URL for the auth login popup.
+   * @deprecated Use `environment` instead. When set, overrides `environment` for the
+   *   auth popup and emits a one-time deprecation warning.
+   */
   authUrl?: string;
-  /** URL for the reconnect popup (Step 3 manual reconnect) */
+  /**
+   * URL for the reconnect popup (Step 3 manual reconnect).
+   * @deprecated Use `environment` instead. When set, overrides `environment` for the
+   *   reconnect popup and emits a one-time deprecation warning.
+   */
   reconnectUrl?: string;
   /** Expected origin for postMessage validation */
   expectedOrigin?: string;
