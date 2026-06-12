@@ -195,6 +195,38 @@ const {
 </UniverseAuthProvider>
 ```
 
+## Migration: `authUrl` / `reconnectUrl` → `environment` (0.4.0)
+
+As of **0.4.0**, the OIDC hooks accept an `environment: 'production' | 'staging'`
+option that selects the canonical URLs the SDK calls. `'production'` is the default
+when omitted, so most apps need no code changes.
+
+The explicit `authUrl` and `reconnectUrl` options still work but are **deprecated**
+and will be removed in a future major version. When you pass either, the SDK logs a
+one-time `console.warn` and uses the value you supplied (back-compat semantics — the
+explicit URL still wins over `environment`).
+
+```ts
+// Before
+useMerkosAuth({
+  authUrl: 'https://auth.chabaduniverse.com/merkos/login',
+  reconnectUrl: 'https://auth.chabaduniverse.com/merkos/reconnect',
+});
+
+// After — production (default; the `environment` line is optional)
+useMerkosAuth({ environment: 'production' });
+
+// After — staging
+useMerkosAuth({ environment: 'staging' });
+```
+
+The same option is available on `useMerkosOIDC`.
+
+> **Phase 3 note:** in a future SDK release (tracked by CU-889 Phase 3, blocked on
+> CU-890) the `production` URLs will flip from the auth-relay to the cu-oidc-provider.
+> Apps that are already on `environment: 'production'` (or relying on the default)
+> migrate via SDK version bump alone.
+
 ## Documentation
 
 | Document | Description |

@@ -15,10 +15,12 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { getStoredToken, removeToken, isTokenExpired } from '../cdsso/cdsso-utils';
 import { getDefaultCdssoClient } from '../cdsso/cdsso-client';
 import { openAuthPopup } from './popup-auth';
+import { warnDeprecatedOption, warnInvalidOption } from './deprecation';
 import {
   DEFAULT_STORAGE_KEY,
-  DEFAULT_AUTH_URL,
-  DEFAULT_RECONNECT_URL,
+  DEFAULT_ENVIRONMENT,
+  ENVIRONMENT_URLS,
+  type MerkosEnvironment,
   type UseMerkosAuthOptions,
   type UseMerkosAuthReturn,
   type MerkosAuthMethod,
@@ -90,13 +92,35 @@ export function useMerkosAuth(options: UseMerkosAuthOptions = {}): UseMerkosAuth
   const {
     storageKey = DEFAULT_STORAGE_KEY,
     reconnectMode = 'auto',
-    authUrl = DEFAULT_AUTH_URL,
-    reconnectUrl = DEFAULT_RECONNECT_URL,
+    environment = DEFAULT_ENVIRONMENT,
+    authUrl: explicitAuthUrl,
+    reconnectUrl: explicitReconnectUrl,
     expectedOrigin,
     onAuthenticated,
     debug = false,
     forceEnabled = false,
   } = options;
+
+  // Resolution: explicit URL wins over the env default; deprecation warning fires
+  // exactly once per option name across the module's lifetime (Set in deprecation.ts).
+  if (explicitAuthUrl !== undefined) {
+    warnDeprecatedOption('authUrl', 'Use the `environment` option instead.');
+  }
+  if (explicitReconnectUrl !== undefined) {
+    warnDeprecatedOption('reconnectUrl', 'Use the `environment` option instead.');
+  }
+
+  // Runtime fallback for non-TS callers passing an unknown environment string.
+  const envEntry = ENVIRONMENT_URLS[environment as MerkosEnvironment];
+  if (!envEntry) {
+    warnInvalidOption(
+      'environment',
+      `received "${environment}". Valid: 'production' | 'staging'. Falling back to production.`,
+    );
+  }
+  const envUrls = envEntry ?? ENVIRONMENT_URLS.production;
+  const authUrl = explicitAuthUrl ?? envUrls.auth;
+  const reconnectUrl = explicitReconnectUrl ?? envUrls.reconnect;
 
   // Derive per-URL origins; explicit expectedOrigin overrides both
   const authExpectedOrigin = expectedOrigin ?? new URL(authUrl).origin;

@@ -7,9 +7,12 @@
 
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { openAuthPopup, type PopupAuthResult } from './popup-auth';
+import { warnDeprecatedOption, warnInvalidOption } from './deprecation';
 import {
-  DEFAULT_AUTH_URL,
+  DEFAULT_ENVIRONMENT,
   DEFAULT_STORAGE_KEY,
+  ENVIRONMENT_URLS,
+  type MerkosEnvironment,
   type UseMerkosOIDCOptions,
   type UseMerkosOIDCReturn,
 } from './types';
@@ -25,10 +28,27 @@ import {
  */
 export function useMerkosOIDC(options: UseMerkosOIDCOptions = {}): UseMerkosOIDCReturn {
   const {
-    authUrl = DEFAULT_AUTH_URL,
-    expectedOrigin = new URL(authUrl).origin,
+    environment = DEFAULT_ENVIRONMENT,
+    authUrl: explicitAuthUrl,
+    expectedOrigin: explicitExpectedOrigin,
     storageKey = DEFAULT_STORAGE_KEY,
   } = options;
+
+  if (explicitAuthUrl !== undefined) {
+    warnDeprecatedOption('authUrl', 'Use the `environment` option instead.');
+  }
+
+  // Runtime fallback for non-TS callers passing an unknown environment string.
+  const envEntry = ENVIRONMENT_URLS[environment as MerkosEnvironment];
+  if (!envEntry) {
+    warnInvalidOption(
+      'environment',
+      `received "${environment}". Valid: 'production' | 'staging'. Falling back to production.`,
+    );
+  }
+  const envUrls = envEntry ?? ENVIRONMENT_URLS.production;
+  const authUrl = explicitAuthUrl ?? envUrls.auth;
+  const expectedOrigin = explicitExpectedOrigin ?? new URL(authUrl).origin;
 
   const [isOpen, setIsOpen] = useState(false);
   const popupRef = useRef<PopupAuthResult | null>(null);

@@ -531,3 +531,242 @@ describe('useMerkosAuth', () => {
     expect(result.current.isAuthenticating).toBe(false);
   });
 });
+
+// ============================================================================
+// environment param (CU-889 Phase 1)
+// ============================================================================
+
+describe('useMerkosAuth – environment param (CU-889)', () => {
+  const STAGING_AUTH_URL = 'https://test-auth.chabaduniverse.com/merkos/login';
+  const STAGING_RECONNECT_URL = 'https://test-auth.chabaduniverse.com/merkos/reconnect';
+  const PROD_AUTH_URL = 'https://auth.chabaduniverse.com/merkos/login';
+
+  let warnSpy: ReturnType<typeof vi.spyOn>;
+  let resolvePopup: (value: string) => void;
+
+  function simulateIframe() {
+    Object.defineProperty(window, 'self', { value: {}, writable: true, configurable: true });
+    Object.defineProperty(window, 'top', { value: window, writable: true, configurable: true });
+    Object.defineProperty(document, 'referrer', {
+      value: 'https://portal.chabaduniverse.com/',
+      writable: true,
+      configurable: true,
+    });
+  }
+
+  beforeEach(async () => {
+    vi.clearAllMocks();
+
+    // Reset the module-scoped warning Set between tests so we can assert
+    // "warns exactly once" semantics across renders.
+    const { __resetDeprecationWarnings } = await import('../deprecation');
+    __resetDeprecationWarnings();
+
+    warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    (popupAuth.openAuthPopup as ReturnType<typeof vi.fn>).mockImplementation(() => {
+      const promise = new Promise<string>((resolve) => {
+        resolvePopup = resolve;
+      });
+      return { promise, cleanup: vi.fn() };
+    });
+
+    simulateIframe();
+  });
+
+  afterEach(() => {
+    warnSpy.mockRestore();
+    vi.restoreAllMocks();
+  });
+
+  it('defaults to production URLs when no environment is supplied', async () => {
+    (cdssoUtils.getStoredToken as ReturnType<typeof vi.fn>).mockReturnValue(null);
+    const mockClient = getMockCdssoClient();
+    mockClient.authenticate.mockResolvedValue(null);
+
+    renderHook(() => useMerkosAuth({ reconnectMode: 'auto' }));
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 0));
+    });
+
+    expect(popupAuth.openAuthPopup).toHaveBeenCalledWith(
+      PROD_AUTH_URL,
+      'https://auth.chabaduniverse.com',
+      'merkos_auth_token',
+    );
+    expect(warnSpy).not.toHaveBeenCalled();
+  });
+
+  it('routes auth popup to staging when environment=staging', async () => {
+    (cdssoUtils.getStoredToken as ReturnType<typeof vi.fn>).mockReturnValue(null);
+    const mockClient = getMockCdssoClient();
+    mockClient.authenticate.mockResolvedValue(null);
+
+    renderHook(() => useMerkosAuth({ reconnectMode: 'auto', environment: 'staging' }));
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 0));
+    });
+
+    expect(popupAuth.openAuthPopup).toHaveBeenCalledWith(
+      STAGING_AUTH_URL,
+      'https://test-auth.chabaduniverse.com',
+      'merkos_auth_token',
+    );
+    expect(warnSpy).not.toHaveBeenCalled();
+  });
+
+  it('routes reconnect popup to staging when environment=staging', async () => {
+    (cdssoUtils.getStoredToken as ReturnType<typeof vi.fn>).mockReturnValue(null);
+    const mockClient = getMockCdssoClient();
+    mockClient.authenticate.mockResolvedValue(null);
+
+    const { result } = renderHook(() =>
+      useMerkosAuth({ reconnectMode: 'manual', environment: 'staging' }),
+    );
+
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 0));
+    });
+
+    expect(result.current.needsReconnect).toBe(true);
+
+    act(() => {
+      result.current.reconnect();
+    });
+
+    expect(popupAuth.openAuthPopup).toHaveBeenCalledWith(
+      STAGING_RECONNECT_URL,
+      'https://test-auth.chabaduniverse.com',
+      'merkos_auth_token',
+    );
+  });
+
+  it('explicit authUrl overrides environment AND emits one deprecation warning', async () => {
+    (cdssoUtils.getStoredToken as ReturnType<typeof vi.fn>).mockReturnValue(null);
+    const mockClient = getMockCdssoClient();
+    mockClient.authenticate.mockResolvedValue(null);
+
+    const customAuthUrl = 'https://override.example.com/login';
+    renderHook(() =>
+      useMerkosAuth({
+        reconnectMode: 'auto',
+        environment: 'staging',
+        authUrl: customAuthUrl,
+      }),
+    );
+
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 0));
+    });
+
+    // Explicit URL won — staging URL was NOT used
+    expect(popupAuth.openAuthPopup).toHaveBeenCalledWith(
+      customAuthUrl,
+      'https://override.example.com',
+      'merkos_auth_token',
+    );
+    // Exactly one warning, naming the deprecated option
+    expect(warnSpy).toHaveBeenCalledTimes(1);
+    expect(warnSpy.mock.calls[0]?.[0]).toContain('authUrl');
+    expect(warnSpy.mock.calls[0]?.[0]).toContain('deprecated');
+  });
+
+  it('explicit reconnectUrl overrides environment AND emits one deprecation warning', async () => {
+    (cdssoUtils.getStoredToken as ReturnType<typeof vi.fn>).mockReturnValue(null);
+    const mockClient = getMockCdssoClient();
+    mockClient.authenticate.mockResolvedValue(null);
+
+    const customReconnectUrl = 'https://override.example.com/reconnect';
+    const { result } = renderHook(() =>
+      useMerkosAuth({
+        reconnectMode: 'manual',
+        environment: 'staging',
+        reconnectUrl: customReconnectUrl,
+      }),
+    );
+
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 0));
+    });
+
+    act(() => {
+      result.current.reconnect();
+    });
+
+    expect(popupAuth.openAuthPopup).toHaveBeenCalledWith(
+      customReconnectUrl,
+      'https://override.example.com',
+      'merkos_auth_token',
+    );
+    expect(warnSpy).toHaveBeenCalledTimes(1);
+    expect(warnSpy.mock.calls[0]?.[0]).toContain('reconnectUrl');
+  });
+
+  it('falls back to production AND warns once when environment is an unknown string', async () => {
+    (cdssoUtils.getStoredToken as ReturnType<typeof vi.fn>).mockReturnValue(null);
+    const mockClient = getMockCdssoClient();
+    mockClient.authenticate.mockResolvedValue(null);
+
+    // Simulate a non-TS caller passing an invalid value through `as any`.
+    const { rerender } = renderHook(
+      ({ env }: { env: string }) =>
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        useMerkosAuth({ reconnectMode: 'auto', environment: env as any }),
+      { initialProps: { env: 'prod' } },
+    );
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 0));
+    });
+
+    // Falls back to production URLs (not staging, not a crash)
+    expect(popupAuth.openAuthPopup).toHaveBeenCalledWith(
+      PROD_AUTH_URL,
+      'https://auth.chabaduniverse.com',
+      'merkos_auth_token',
+    );
+
+    // Re-render with another invalid value — still only one warning total
+    rerender({ env: 'development' });
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 0));
+    });
+
+    const invalidWarnings = warnSpy.mock.calls.filter((c) =>
+      String(c[0]).includes('Invalid `environment`'),
+    );
+    expect(invalidWarnings).toHaveLength(1);
+  });
+
+  it('deprecation warning fires exactly once across multiple renders/instances', async () => {
+    (cdssoUtils.getStoredToken as ReturnType<typeof vi.fn>).mockReturnValue(null);
+    const mockClient = getMockCdssoClient();
+    mockClient.authenticate.mockResolvedValue(null);
+
+    const customAuthUrl = 'https://override.example.com/login';
+
+    // First render — should warn
+    const { rerender } = renderHook(
+      ({ authUrl }: { authUrl?: string }) => useMerkosAuth({ authUrl, reconnectMode: 'manual' }),
+      { initialProps: { authUrl: customAuthUrl } },
+    );
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 0));
+    });
+
+    // Trigger several rerenders + an additional independent hook instance
+    rerender({ authUrl: customAuthUrl });
+    rerender({ authUrl: customAuthUrl });
+    renderHook(() =>
+      useMerkosAuth({ authUrl: 'https://other.example.com/login', reconnectMode: 'manual' }),
+    );
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 0));
+    });
+
+    // Exactly one warning for `authUrl`, across all renders/instances
+    const authUrlWarnings = warnSpy.mock.calls.filter((c) =>
+      String(c[0]).includes('authUrl'),
+    );
+    expect(authUrlWarnings).toHaveLength(1);
+  });
+});
