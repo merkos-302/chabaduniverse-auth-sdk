@@ -38,3 +38,4 @@ package-lock.json
 # Personal in-flight ticket state (written by /start-ticket)
 .claude/active-ticket.md
 .claude/relay-log.md
+.claude/worktrees/
