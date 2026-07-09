@@ -196,6 +196,41 @@ export type {
 } from './oidc';
 
 // ============================================================================
+// cu-oidc Module (cu-oidc-native mode — direct PKCE against *.oidc.merkos302.com)
+// ============================================================================
+//
+// Curated high-level surface only, to avoid name collisions with the CDSSO
+// module (`decodeJwtPayload`, `isTokenExpired`, `getTokenExpiration`). The full
+// granular, tree-shakeable API is available at the `./cu-oidc` subpath.
+
+export {
+  createCuOidcClient,
+  useCuOidc,
+  CuOidcLoginError,
+  CuOidcVerifyError,
+  CU_OIDC_ISSUERS,
+  DEFAULT_CU_OIDC_ENVIRONMENT,
+} from './cu-oidc';
+
+export type {
+  CuOidcClient,
+  UseCuOidcReturn,
+  CuOidcConfig,
+  ResolvedCuOidcConfig,
+  CuOidcEnvironment,
+  CuOidcEndpoints,
+  CuOidcTokens,
+  CuOidcLoginResult,
+  CuOidcSilentResult,
+  CuOidcClaims,
+  CuChabaduniverseClaims,
+  CuValuClaims,
+  CuMerkosClaims,
+  CuOidcNamespace,
+  PkceParams,
+} from './cu-oidc';
+
+// ============================================================================
 // Valu Module
 // ============================================================================
 
