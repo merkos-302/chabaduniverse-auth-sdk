@@ -1,6 +1,6 @@
 {
   "name": "@chabaduniverse/auth-sdk",
-  "version": "0.4.0",
+  "version": "1.0.0-beta.1",
   "description": "Unified authentication SDK for Chabad Universe ecosystem",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -85,6 +85,16 @@
       "require": {
         "types": "./dist/oidc/index.d.cts",
         "default": "./dist/oidc/index.cjs"
+      }
+    },
+    "./cu-oidc": {
+      "import": {
+        "types": "./dist/cu-oidc/index.d.ts",
+        "default": "./dist/cu-oidc/index.js"
+      },
+      "require": {
+        "types": "./dist/cu-oidc/index.d.cts",
+        "default": "./dist/cu-oidc/index.cjs"
       }
     }
   },

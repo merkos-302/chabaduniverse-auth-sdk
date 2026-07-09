@@ -10,6 +10,7 @@ export default defineConfig({
     'merkos/index': 'src/merkos/index.ts',
     'valu/index': 'src/valu/index.ts',
     'oidc/index': 'src/oidc/index.ts',
+    'cu-oidc/index': 'src/cu-oidc/index.ts',
   },
   format: ['esm', 'cjs'],
   dts: true,
