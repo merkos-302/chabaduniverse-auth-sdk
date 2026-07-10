@@ -50,6 +50,33 @@ export type {
   HandleReceiverOptions,
 } from './silent-sso';
 
+// --- cross-method identity linking (CU-1049 / CU-1047) ---
+export {
+  exchangeValuToken,
+  driveInterstitial,
+  ensureLinkedSession,
+  isEnrichedClaims,
+  CuOidcConnectError,
+  TOKEN_EXCHANGE_GRANT_TYPE,
+  VALU_IDENTITY_SUBJECT_TOKEN_TYPE,
+  ID_TOKEN_ISSUED_TOKEN_TYPE,
+  CONNECT_ACCOUNT_PATH,
+  MSG_CONNECT_READY,
+  MSG_VALU_TOKEN,
+  MSG_MAGIC_LINK_SENT,
+} from './connect-account';
+export type {
+  ExchangeValuTokenOptions,
+  ExchangeResult,
+  PopupLike,
+  OpenPopupFn,
+  MessageTargetLike,
+  DriveInterstitialOptions,
+  InterstitialOutcome,
+  EnsureLinkedSessionOptions,
+  EnsureLinkedSessionResult,
+} from './connect-account';
+
 // --- JWKS verification ---
 export {
   verifyIdToken,

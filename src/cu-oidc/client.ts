@@ -30,6 +30,11 @@ import {
   type HandleReceiverOptions,
   type StartSilentSsoOptions,
 } from './silent-sso';
+import {
+  ensureLinkedSession,
+  type EnsureLinkedSessionOptions,
+  type EnsureLinkedSessionResult,
+} from './connect-account';
 import { clearIdToken, readIdToken } from './storage';
 import type {
   CuOidcClaims,
@@ -81,6 +86,14 @@ export interface CuOidcClient {
   /** Handle the silent-SSO return hop. `not_authenticated` → fall back to `login`. */
   handleReceiver(opts?: HandleReceiverOptions): Promise<CuOidcSilentResult>;
 
+  // --- cross-method identity linking (CU-1049) ---
+  /**
+   * Exchange a Valu token; if the identity is thin (unlinked), drive the
+   * magic-link interstitial and re-exchange on return. Idempotent — call on
+   * every mini-app load. See {@link ensureLinkedSession}.
+   */
+  ensureLinkedSession(opts?: EnsureLinkedSessionOptions): Promise<EnsureLinkedSessionResult>;
+
   // --- verification + claims ---
   /** Verify a token (JWKS signature + iss + exp). Throws on failure. */
   verify(token: string, opts?: ClientVerifyOptions): Promise<CuOidcClaims>;
@@ -125,6 +138,8 @@ export function createCuOidcClient(config: CuOidcConfig): CuOidcClient {
 
     silentSSO: (opts) => startSilentSso(resolved, opts),
     handleReceiver: (opts) => handleReceiver(resolved, opts),
+
+    ensureLinkedSession: (opts) => ensureLinkedSession(resolved, opts),
 
     verify: (token, opts = {}) =>
       verifyIdToken(token, {
