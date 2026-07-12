@@ -313,6 +313,50 @@ describe('driveInterstitial', () => {
     vi.advanceTimersByTime(5001);
     await expect(p).resolves.toEqual({ status: 'timed-out' });
   });
+
+  it('CU-1053: forwards a valid email hint (trimmed) in the token message', async () => {
+    const popup = fakePopup();
+    const p = driveInterstitial(config, 'valu.jwt', {
+      openPopup: () => popup,
+      emailHint: '  User@Example.com  ',
+    });
+    post(MSG_CONNECT_READY);
+    post(MSG_LINKED);
+    await p;
+    // Trimmed, case preserved, included alongside the token, issuer-targeted.
+    expect(popup.postMessage).toHaveBeenCalledWith(
+      { type: MSG_VALU_TOKEN, token: 'valu.jwt', email: 'User@Example.com' },
+      ISSUER_ORIGIN,
+    );
+  });
+
+  it('CU-1053: omits the email key entirely when no hint is supplied', async () => {
+    const popup = fakePopup();
+    const p = driveInterstitial(config, 'valu.jwt', { openPopup: () => popup });
+    post(MSG_CONNECT_READY);
+    post(MSG_LINKED);
+    await p;
+    const msg = popup.postMessage.mock.calls.find(
+      ([m]) => (m as { type?: string })?.type === MSG_VALU_TOKEN,
+    )?.[0] as Record<string, unknown>;
+    expect(msg).toEqual({ type: MSG_VALU_TOKEN, token: 'valu.jwt' });
+    expect(msg).not.toHaveProperty('email');
+  });
+
+  it('CU-1053: drops a malformed email hint rather than posting it', async () => {
+    const popup = fakePopup();
+    const p = driveInterstitial(config, 'valu.jwt', {
+      openPopup: () => popup,
+      emailHint: 'not-an-email',
+    });
+    post(MSG_CONNECT_READY);
+    post(MSG_LINKED);
+    await p;
+    const msg = popup.postMessage.mock.calls.find(
+      ([m]) => (m as { type?: string })?.type === MSG_VALU_TOKEN,
+    )?.[0] as Record<string, unknown>;
+    expect(msg).not.toHaveProperty('email');
+  });
 });
 
 // ===========================================================================
@@ -587,6 +631,22 @@ describe('ensureLinkedSession', () => {
     expect(confirmedSub).toBe(VALU_SUB);
     expect(boundSub).toBe(VALU_SUB);
     expect(confirmedSub).toBe(boundSub);
+  });
+
+  it('CU-1053: forwards a top-level emailHint to the interstitial popup', async () => {
+    const popup = fakePopup();
+    await ensureLinkedSession(config, {
+      valuToken: VALU_TOKEN,
+      fetchImpl: jsonFetch({ access_token: THIN }),
+      emailHint: 'prefill@example.com',
+      interstitial: { openPopup: autoBindingPopup(popup) },
+      sleep: async () => {},
+      pollTimeoutMs: 0, // inspect only what was posted; don't spin the backstop poll
+    });
+    const handoff = popup.postMessage.mock.calls.find(
+      ([msg]) => (msg as { type?: string })?.type === MSG_VALU_TOKEN,
+    )?.[0] as { email?: string } | undefined;
+    expect(handoff?.email).toBe('prefill@example.com');
   });
 
   it('shared-device gate: opaque/undecodable Valu token → confirmIdentity receives null (cannot confirm)', async () => {
