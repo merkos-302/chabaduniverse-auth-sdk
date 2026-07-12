@@ -9,6 +9,7 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { getClaims } from '../claims';
 import { resolveCuOidcConfig } from '../config';
 import { bytesToBase64Url } from '../crypto-utils';
 import { readIdToken } from '../storage';
@@ -61,6 +62,22 @@ const ENRICHED = jwt({
   email_verified: true,
   chabaduniverse: { user_id: 'cu-user-1', is_shliach: true },
   valu: { user_id: 'valu-abc' },
+});
+
+/**
+ * A DECODABLE Valu identity token (getClaims reads its payload) carrying a known
+ * `sub` — the confirm-gate tests assert WHICH identity got pinned to the bind.
+ * The gate reads, and driveInterstitial hands the popup, the raw Valu token
+ * (NOT the exchanged id_token), so its `sub` is what a consumer's "is this you?"
+ * check is shown and what ultimately binds.
+ */
+const VALU_SUB = 'valu-abc';
+const VALU_TOKEN = jwt({
+  sub: VALU_SUB,
+  iss: 'https://api.roomful.net',
+  aud: 'cu-test-harness',
+  iat: nowSec,
+  exp: nowSec + 300,
 });
 
 /** A fetch mock returning a JSON body with the given status. */
@@ -452,5 +469,169 @@ describe('ensureLinkedSession', () => {
     expect(lastError?.reason).toBe('exchange_failed');
     // Broke on the first failed poll (1 first-exchange + 1 poll) — no spinning.
     expect(call).toBe(2);
+  });
+
+  // --- shared-device confirmation gate (CU-1051 — pins the bound Valu sub) ----
+
+  it('shared-device gate: thin + confirmIdentity → false → declined, popup never opens, nothing persisted', async () => {
+    const openPopup = vi.fn();
+    const confirmIdentity = vi.fn(async () => false);
+
+    const res = await ensureLinkedSession(config, {
+      valuToken: VALU_TOKEN,
+      fetchImpl: jsonFetch({ access_token: THIN }),
+      confirmIdentity,
+      interstitial: { openPopup },
+    });
+
+    expect(res).toEqual({ status: 'declined' });
+    // The gate is pinned to the EXACT sub about to be bound (CU-1051 C1).
+    expect(confirmIdentity).toHaveBeenCalledTimes(1);
+    expect(confirmIdentity).toHaveBeenCalledWith(VALU_SUB);
+    // The gate fires BEFORE the interstitial — no popup, no bind attempted...
+    expect(openPopup).not.toHaveBeenCalled();
+    // ...and a decline leaves NO first-party session behind.
+    expect(readIdToken(config.tokenStorageKey)).toBeNull();
+  });
+
+  it('shared-device gate: thin + confirmIdentity → true (receives the bound sub) → proceeds to the bind', async () => {
+    let call = 0;
+    const fetchImpl = vi.fn(async () => {
+      call += 1;
+      const body = call === 1 ? { access_token: THIN } : { access_token: ENRICHED };
+      return new Response(JSON.stringify(body), { status: 200 });
+    }) as unknown as typeof fetch;
+    const confirmIdentity = vi.fn(() => true);
+
+    const res = await ensureLinkedSession(config, {
+      getValuToken: async () => VALU_TOKEN,
+      fetchImpl,
+      confirmIdentity,
+      interstitial: { openPopup: autoBindingPopup(fakePopup()) },
+      sleep: async () => {
+        throw new Error('poll must not run on the bound path');
+      },
+    });
+
+    expect(confirmIdentity).toHaveBeenCalledTimes(1);
+    expect(confirmIdentity).toHaveBeenCalledWith(VALU_SUB);
+    expect(res).toMatchObject({ status: 'linked', viaInterstitial: true });
+  });
+
+  it('shared-device gate: confirmIdentity throws → rejects fail-closed, popup never opens, nothing persisted', async () => {
+    const openPopup = vi.fn();
+    const boom = new Error('valu profile fetch failed');
+    const confirmIdentity = vi.fn(async () => {
+      throw boom;
+    });
+
+    // A gate that cannot decide must fail CLOSED — the rejection propagates and
+    // no bind is attempted, rather than falling through to staple an
+    // unconfirmed sub to the email.
+    await expect(
+      ensureLinkedSession(config, {
+        valuToken: VALU_TOKEN,
+        fetchImpl: jsonFetch({ access_token: THIN }),
+        confirmIdentity,
+        interstitial: { openPopup },
+      }),
+    ).rejects.toBe(boom);
+
+    expect(openPopup).not.toHaveBeenCalled();
+    expect(readIdToken(config.tokenStorageKey)).toBeNull();
+  });
+
+  it('CU-1051 C1: the confirmed sub IS the bound sub — one mint feeds both gate and interstitial', async () => {
+    // getValuToken yields a DIFFERENT identity once the bound token is already in
+    // hand, simulating a shared-device session flip mid-flow. Because the fix
+    // mints the bound token ONCE and reuses it, the sub shown to the human MUST
+    // equal the sub posted to the interstitial — a later re-mint cannot swap the
+    // identity out from under the confirmation (the TOCTOU the old double-mint
+    // allowed). Sequence: mint#1=first-exchange, mint#2=boundToken (gate +
+    // interstitial), mint#3+=the bound re-exchange, which we let drift to ATTACKER
+    // to prove the popup still received mint#2.
+    const ATTACKER = jwt({
+      sub: 'valu-attacker',
+      iss: 'https://api.roomful.net',
+      aud: 'cu-test-harness',
+      iat: nowSec,
+      exp: nowSec + 300,
+    });
+    const seq = [VALU_TOKEN, VALU_TOKEN, ATTACKER, ATTACKER, ATTACKER];
+    let n = 0;
+    const getValuToken = () => seq[Math.min(n++, seq.length - 1)];
+
+    const popup = fakePopup();
+    let confirmedSub: string | null = 'UNSET';
+    const confirmIdentity = vi.fn((sub: string | null) => {
+      confirmedSub = sub;
+      return true;
+    });
+
+    await ensureLinkedSession(config, {
+      getValuToken,
+      fetchImpl: jsonFetch({ access_token: THIN }), // always thin → reaches the bind, stays thin after
+      confirmIdentity,
+      interstitial: { openPopup: autoBindingPopup(popup) },
+      sleep: async () => {},
+      pollTimeoutMs: 0, // don't spin the backstop poll — we only inspect what was posted
+    });
+
+    // The Valu token actually handed to the interstitial (posted to the popup)...
+    const handoff = popup.postMessage.mock.calls.find(
+      ([msg]) => (msg as { type?: string } | undefined)?.type === MSG_VALU_TOKEN,
+    )?.[0] as { token: string } | undefined;
+    const boundSub = getClaims(handoff?.token ?? '')?.sub ?? null;
+
+    // ...decodes to the SAME sub the human confirmed — never mint#3 (ATTACKER).
+    expect(confirmedSub).toBe(VALU_SUB);
+    expect(boundSub).toBe(VALU_SUB);
+    expect(confirmedSub).toBe(boundSub);
+  });
+
+  it('shared-device gate: opaque/undecodable Valu token → confirmIdentity receives null (cannot confirm)', async () => {
+    // getClaims returns null (never throws) for a token it cannot decode, so a
+    // garbage/opaque Valu token surfaces as a null sub. The gate STILL fires and
+    // hands the consumer `null` to treat as "cannot confirm" — it must not be
+    // silently coerced into a pass.
+    const confirmIdentity = vi.fn(() => false);
+    const res = await ensureLinkedSession(config, {
+      valuToken: 'opaque-not-a-jwt',
+      fetchImpl: jsonFetch({ access_token: THIN }),
+      confirmIdentity,
+      interstitial: { openPopup: vi.fn() },
+    });
+    expect(res).toEqual({ status: 'declined' });
+    expect(confirmIdentity).toHaveBeenCalledWith(null);
+  });
+
+  it('shared-device gate: confirmIdentity returns undefined (forgotten return) → fail-closed to declined', async () => {
+    const openPopup = vi.fn();
+    // A consumer that forgets to `return` yields undefined → falsy → the gate
+    // declines rather than falling through to a bind. `!confirmed` fails closed.
+    const confirmIdentity = vi.fn(() => undefined as unknown as boolean);
+    const res = await ensureLinkedSession(config, {
+      valuToken: VALU_TOKEN,
+      fetchImpl: jsonFetch({ access_token: THIN }),
+      confirmIdentity,
+      interstitial: { openPopup },
+    });
+    expect(res).toEqual({ status: 'declined' });
+    expect(openPopup).not.toHaveBeenCalled();
+  });
+
+  it('shared-device gate: already linked → confirmIdentity is NOT called (no bind, no prompt)', async () => {
+    const confirmIdentity = vi.fn(() => false);
+
+    const res = await ensureLinkedSession(config, {
+      valuToken: 'valu.jwt',
+      fetchImpl: jsonFetch({ access_token: ENRICHED }),
+      confirmIdentity,
+    });
+
+    expect(res).toMatchObject({ status: 'linked', viaInterstitial: false });
+    // A returning (already-linked) user is never prompted — the gate guards the
+    // thin/bind path only, so a `false`-returning gate can't block a linked user.
+    expect(confirmIdentity).not.toHaveBeenCalled();
   });
 });

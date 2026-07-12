@@ -464,6 +464,55 @@ export interface EnsureLinkedSessionOptions {
   isLinked?: (claims: CuOidcClaims | null) => boolean;
   /** Persist the final enriched id_token first-party (default `true`). */
   persist?: boolean;
+  /**
+   * Shared-device confirmation gate (CU-1051 — residual-risk mitigation layered
+   * on CU-1050 co-presentation). Invoked with the classified Valu `sub` on the
+   * THIN path only — immediately before the magic-link interstitial opens, i.e.
+   * the one moment a `valu sub ↔ email` bind is about to be created. Return
+   * `false` (or a promise of it) to abort: the flow then resolves
+   * `{status:'declined'}` and no popup opens and no bind is attempted. An
+   * already-linked identity never reaches this gate (it returns before the
+   * interstitial), so returning users are never prompted.
+   *
+   * Why it exists: the Valu identity token is sub-only, so the bind joins an
+   * OPAQUE `sub` to the magic-link-VERIFIED email — and the human never sees
+   * WHICH Valu identity they are binding. On a shared machine a stale Valu
+   * session (someone else's `sub`) would bind to the email owner's verified
+   * inbox, handing that other person a durable, enriched account. The magic
+   * link proves the EMAIL; it can never prove the `sub`. Surfacing the ambient
+   * Valu profile (name + avatar) lets the human catch "that isn't me" before
+   * the link goes out.
+   *
+   * The `valuSub` argument is the `sub` of the EXACT token that will be bound
+   * (decoded from the same single mint handed to the interstitial — never a
+   * second, later read of the ambient identity). Cross-check it against the
+   * profile you fetch — e.g. assert `getApi('users').run('current')`'s
+   * `.id === valuSub` before rendering "is this you?" — so the identity the
+   * human confirms is provably the identity being bound. It is `null` only if
+   * the token could not be decoded; treat that as "cannot confirm" (show the raw
+   * prompt or decline) rather than a pass.
+   *
+   * Headless by design: this SDK holds no Valu profile client of its own, so
+   * the CONSUMER supplies the check — fetch the ambient profile (Valu `users`
+   * API: `getApi('users').run('current')` for the name, then
+   * `run('get-icon', {userId})` for the avatar) and render the "is this you?"
+   * prompt inside this callback. Omit to keep the current (un-gated) behaviour.
+   *
+   * Fail-closed contract: this callback MUST settle — there is no internal
+   * timeout, so a promise that never resolves hangs the flow (no popup, no
+   * bind). If it throws or rejects, `ensureLinkedSession` rejects and NO bind
+   * occurs (consistent with a failed token-exchange); a throw never silently
+   * proceeds to a bind. Callers that `switch` on the result status must
+   * therefore also guard the call in `try/catch`.
+   *
+   * Limits: the profile is opener-asserted, not cryptographically bound to the
+   * token, so a targeted attacker who renames themselves to match the victim
+   * defeats it — this is a human sanity-check for the accidental / opportunistic
+   * shared-session case, not a cryptographic control. The durable fix is a
+   * verified `email` claim on the Valu token (not available today); until then
+   * this is the only human check on the `sub` half of the bind.
+   */
+  confirmIdentity?: (valuSub: string | null) => boolean | Promise<boolean>;
   /** Popup/handshake seams passed through to {@link driveInterstitial}. */
   interstitial?: DriveInterstitialOptions;
   /**
@@ -497,6 +546,13 @@ export type EnsureLinkedSessionResult =
   | { status: 'pending'; lastError?: CuOidcConnectError }
   /** The user closed the interstitial without submitting. */
   | { status: 'dismissed' }
+  /**
+   * The consumer's {@link EnsureLinkedSessionOptions.confirmIdentity} gate
+   * returned false — the human did not recognise the ambient Valu identity, so
+   * the flow aborted before opening the popup and no bind was attempted.
+   * Distinct from `dismissed`, which is a popup close AFTER the flow began.
+   */
+  | { status: 'declined' }
   /** The popup was blocked by the browser. */
   | { status: 'blocked' };
 
@@ -555,10 +611,25 @@ export async function ensureLinkedSession(
     return settleLinked(first, false);
   }
 
-  // 2. Thin identity → drive the interstitial. Mint a live token for the popup
-  //    (with a `getValuToken` factory this is fresh; with a static `valuToken`
-  //    it's the same value — either way still valid for the immediate hand-off).
-  const outcome = await driveInterstitial(config, await mintValuToken(), {
+  // 1a. Thin identity → a `valu sub ↔ email` bind is imminent. Mint the token
+  //     that will actually be handed to the interstitial ONCE, and pin the
+  //     consumer's confirmation to ITS `sub` (CU-1051 C1). A single read of the
+  //     ambient identity feeds BOTH the "is this you?" check and the bind, so a
+  //     mid-prompt Valu session switch on a shared device cannot make the human
+  //     confirm one identity while a second, later mint binds another — the
+  //     token confirmed IS the token bound. A `false` means the human didn't
+  //     recognise the signed-in Valu user; abort before any bind rather than
+  //     staple someone else's `sub` to this email.
+  const boundToken = await mintValuToken();
+  if (opts.confirmIdentity) {
+    const boundSub = getClaims(boundToken)?.sub ?? null;
+    const confirmed = await opts.confirmIdentity(boundSub);
+    if (!confirmed) return { status: 'declined' };
+  }
+
+  // 2. Thin identity → drive the interstitial with the SAME token whose `sub`
+  //    the consumer just confirmed (no second, unpinned re-mint).
+  const outcome = await driveInterstitial(config, boundToken, {
     ...(opts.interstitial ?? {}),
   });
   if (outcome.status === 'blocked') return { status: 'blocked' };
