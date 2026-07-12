@@ -1,6 +1,6 @@
 {
   "name": "@chabaduniverse/auth-sdk",
-  "version": "1.0.0-beta.2",
+  "version": "1.0.0-beta.3",
   "description": "Unified authentication SDK for Chabad Universe ecosystem",
   "type": "module",
   "main": "./dist/index.cjs",
