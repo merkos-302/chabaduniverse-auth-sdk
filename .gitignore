@@ -39,3 +39,6 @@ package-lock.json
 .claude/active-ticket.md
 .claude/relay-log.md
 .claude/worktrees/
+
+# oh-my-claudecode local tooling state
+.omc/

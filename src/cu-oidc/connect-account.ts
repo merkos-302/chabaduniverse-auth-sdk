@@ -254,6 +254,14 @@ export interface DriveInterstitialOptions {
   closePollMs?: number;
   /** Close the popup ourselves once the outcome is decided. Default `true`. */
   autoClose?: boolean;
+  /**
+   * CU-1053 — optional email pre-fill hint forwarded to the popup in the
+   * `cu-oidc:valu-token` message. The bridge pre-fills the email field with it;
+   * the user still submits explicitly (no auto-submit) and the emailed link
+   * still proves the inbox. A malformed hint is dropped. Omit when the opener
+   * has no email to offer (e.g. the sub-only test harness).
+   */
+  emailHint?: string;
 }
 
 /** Terminal outcome of the interstitial popup handshake. */
@@ -294,6 +302,21 @@ const defaultOpenPopup: OpenPopupFn = (url, name, features) => {
 };
 
 /**
+ * CU-1053 — validate an optional email pre-fill hint before it is posted to the
+ * connect-account popup. A convenience only (the emailed link still proves the
+ * inbox), so a malformed hint is silently dropped rather than raised. Mirrors
+ * the bridge's structural check + 254-char ceiling; case is preserved (the
+ * server canonicalises).
+ */
+const EMAIL_HINT_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+function normalizeEmailHint(hint: string | undefined): string | undefined {
+  if (typeof hint !== 'string') return undefined;
+  const trimmed = hint.trim();
+  if (trimmed.length === 0 || trimmed.length > 254) return undefined;
+  return EMAIL_HINT_RE.test(trimmed) ? trimmed : undefined;
+}
+
+/**
  * Open cu-oidc's `/oidc/connect-account` popup and run the postMessage
  * handshake with `connect-account-bridge.js`:
  *
@@ -332,6 +355,7 @@ export function driveInterstitial(
   const bindTimeoutMs = opts.bindTimeoutMs ?? 300_000;
   const closePollMs = opts.closePollMs ?? 500;
   const autoClose = opts.autoClose !== false;
+  const emailHint = normalizeEmailHint(opts.emailHint);
 
   return new Promise<InterstitialOutcome>((resolve) => {
     const popup = openPopup(pageUrl, 'cu_oidc_connect_account', DEFAULT_POPUP_FEATURES);
@@ -392,7 +416,14 @@ export function driveInterstitial(
         // Arm the "user is typing their email" window now that the page is up.
         sentTimer = setTimeout(() => finish({ status: 'timed-out' }), sentTimeoutMs);
         try {
-          popup.postMessage({ type: MSG_VALU_TOKEN, token: valuToken }, issuerOrigin);
+          // CU-1053 — include the validated email hint only when present, so the
+          // no-hint message shape stays exactly `{ type, token }`.
+          popup.postMessage(
+            emailHint
+              ? { type: MSG_VALU_TOKEN, token: valuToken, email: emailHint }
+              : { type: MSG_VALU_TOKEN, token: valuToken },
+            issuerOrigin,
+          );
         } catch {
           finish({ status: 'timed-out' });
         }
@@ -516,6 +547,14 @@ export interface EnsureLinkedSessionOptions {
   /** Popup/handshake seams passed through to {@link driveInterstitial}. */
   interstitial?: DriveInterstitialOptions;
   /**
+   * CU-1053 — optional email pre-fill hint. Forwarded to the connect-account
+   * popup (via {@link driveInterstitial}) so the field arrives pre-filled when
+   * the consuming app already knows the user's address. Convenience only: the
+   * user still submits explicitly and the emailed link proves the inbox. An
+   * `emailHint` set directly on {@link interstitial} takes precedence.
+   */
+  emailHint?: string;
+  /**
    * After the magic link is sent, poll a re-exchange until the identity links
    * (the user clicked the link) or {@link pollTimeoutMs} elapses. Default
    * `true`. Set `false` to return `{status:'pending'}` immediately after send
@@ -629,8 +668,14 @@ export async function ensureLinkedSession(
 
   // 2. Thin identity → drive the interstitial with the SAME token whose `sub`
   //    the consumer just confirmed (no second, unpinned re-mint).
+  const interstitialOpts = opts.interstitial ?? {};
   const outcome = await driveInterstitial(config, boundToken, {
-    ...(opts.interstitial ?? {}),
+    ...interstitialOpts,
+    // CU-1053 — forward the top-level email hint unless the caller set one
+    // directly on the interstitial seams (the explicit lower-level one wins).
+    ...(interstitialOpts.emailHint === undefined && opts.emailHint !== undefined
+      ? { emailHint: opts.emailHint }
+      : {}),
   });
   if (outcome.status === 'blocked') return { status: 'blocked' };
 
