@@ -1,0 +1,6 @@
+# pnpm blocks dependency build/install scripts by default (supply-chain safety,
+# v10+). esbuild's postinstall links its prebuilt native binary; approving it
+# here stops pnpm erroring on the ignored build during its dep-status check,
+# which otherwise breaks `pnpm build` / `pnpm test`.
+allowBuilds:
+  esbuild: true
