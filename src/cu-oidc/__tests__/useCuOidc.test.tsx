@@ -74,4 +74,53 @@ describe('useCuOidc', () => {
     expect(result.current.token).toBeNull();
     expect(result.current.isAuthenticated).toBe(false);
   });
+
+  it('resync() re-reads a token written outside the hook into reactive state (CU-1058)', async () => {
+    const { result } = renderHook(() => useCuOidc(CONFIG));
+    expect(result.current.token).toBeNull();
+
+    // A non-hook code path writes the token directly to storage.
+    const token = await signTestJwt(key, sampleClaims());
+    localStorage.setItem('cu_id_token', token);
+    // Not reflected yet — the hook didn't make the write and there's no storage listener.
+    expect(result.current.token).toBeNull();
+
+    act(() => {
+      result.current.resync();
+    });
+    expect(result.current.token).toBe(token);
+    expect(result.current.isAuthenticated).toBe(true);
+  });
+
+  it('ensureLinkedSession() re-syncs hook state on success without a remount (CU-1058)', async () => {
+    const token = await signTestJwt(key, sampleClaims());
+    const { result } = renderHook(() => useCuOidc(CONFIG));
+    expect(result.current.token).toBeNull();
+
+    // Stand in for a successful link that persists the id_token, the way the real
+    // client.ensureLinkedSession does — the hook must reflect it with no remount.
+    vi.spyOn(result.current.client, 'ensureLinkedSession').mockImplementation(async () => {
+      localStorage.setItem('cu_id_token', token);
+      return { status: 'linked', tokens: { id_token: token }, claims: null, viaInterstitial: false };
+    });
+
+    await act(async () => {
+      await result.current.ensureLinkedSession();
+    });
+    expect(result.current.token).toBe(token);
+    expect(result.current.isAuthenticated).toBe(true);
+  });
+
+  it('ensureLinkedSession() surfaces the error and clears loading on failure (CU-1058)', async () => {
+    const { result } = renderHook(() => useCuOidc(CONFIG));
+    vi.spyOn(result.current.client, 'ensureLinkedSession').mockRejectedValue(new Error('exchange boom'));
+
+    await act(async () => {
+      await expect(result.current.ensureLinkedSession()).rejects.toThrow('exchange boom');
+    });
+
+    expect(result.current.error).toBe('exchange boom');
+    expect(result.current.isLoading).toBe(false);
+    expect(result.current.token).toBeNull();
+  });
 });

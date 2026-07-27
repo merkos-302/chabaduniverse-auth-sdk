@@ -11,6 +11,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createCuOidcClient, type ClientVerifyOptions, type CuOidcClient, type LogoutOptions } from './client';
 import type { StartLoginOptions, HandleLoginCallbackOptions, RefreshTokensOptions } from './login';
 import type { StartSilentSsoOptions, HandleReceiverOptions } from './silent-sso';
+import type { EnsureLinkedSessionOptions, EnsureLinkedSessionResult } from './connect-account';
 import type {
   CuOidcClaims,
   CuOidcConfig,
@@ -44,8 +45,28 @@ export interface UseCuOidcReturn {
   silentSSO: (opts?: StartSilentSsoOptions) => string;
   /** Handle the silent-SSO return hop; updates state on `authenticated`. */
   handleReceiver: (opts?: HandleReceiverOptions) => Promise<CuOidcSilentResult>;
-  /** Refresh the token set; updates state on success. */
+  /**
+   * Ensure the identity behind the ambient Valu token is linked (exchange +
+   * self-verifying magic-link interstitial as needed), then re-read the STORED
+   * session into hook state on success. Prefer this over
+   * `client.ensureLinkedSession()` directly — a direct client write would not
+   * re-sync the mounted hook (CU-1058). Note: hook state mirrors storage, so
+   * this has no effect on `token`/`isAuthenticated` when called with
+   * `persist: false` — read the returned `result.tokens` in that case.
+   */
+  ensureLinkedSession: (opts?: EnsureLinkedSessionOptions) => Promise<EnsureLinkedSessionResult>;
+  /**
+   * Exchange a `refresh_token` for a NEW token set (network call); updates
+   * state on success. Contrast `resync()`, which only re-reads local storage.
+   */
   refresh: (refreshToken: string, opts?: RefreshTokensOptions) => Promise<CuOidcTokens>;
+  /**
+   * Re-read the stored session into hook state. Use after a write the hook
+   * did not make itself (e.g. a direct `client.ensureLinkedSession()` call, or
+   * a token written by another code path). Local-only — no network. Contrast
+   * `refresh()`, which exchanges a refresh_token for a new token set.
+   */
+  resync: () => void;
   /** Verify a token (JWKS signature + iss + exp). */
   verify: (token: string, opts?: ClientVerifyOptions) => Promise<CuOidcClaims>;
   /** Clear the stored token and navigate to `/oidc/session/end`. */
@@ -166,6 +187,29 @@ export function useCuOidc(config: CuOidcConfig): UseCuOidcReturn {
     [client, sync],
   );
 
+  const ensureLinkedSession = useCallback(
+    async (opts?: EnsureLinkedSessionOptions) => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        const result = await client.ensureLinkedSession(opts);
+        if (mounted.current) sync();
+        return result;
+      } catch (e) {
+        if (mounted.current) setError(e instanceof Error ? e.message : String(e));
+        throw e;
+      } finally {
+        if (mounted.current) setIsLoading(false);
+      }
+    },
+    [client, sync],
+  );
+
+  // CU-1058: manual, local-only re-read of the stored session into hook state.
+  const resync = useCallback(() => {
+    if (mounted.current) sync();
+  }, [sync]);
+
   return {
     client,
     token,
@@ -178,7 +222,9 @@ export function useCuOidc(config: CuOidcConfig): UseCuOidcReturn {
     handleLoginCallback,
     silentSSO,
     handleReceiver,
+    ensureLinkedSession,
     refresh,
+    resync,
     verify,
     logout,
   };
