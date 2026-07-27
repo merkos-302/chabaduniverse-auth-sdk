@@ -149,6 +149,16 @@ export interface CuOidcTokens {
   token_type?: string;
   expires_in?: number;
   scope?: string;
+  /**
+   * Raw HS256 Merkos-Platform token — the top-level `merkos_token` field on the
+   * `/oidc/token` response. Present ONLY when the requesting client is
+   * registered with `issue_legacy_token: true`; absent otherwise. Undecoded on
+   * purpose — decode/verify it yourself before trusting it. Rides the
+   * authorization_code, refresh_token, AND token-exchange grants (each refresh
+   * mints a fresh ~14-day token). For Merkos-Platform-API calls; NOT for
+   * app-session gating (use the RS256 `id_token` for that).
+   */
+  merkos_token?: string;
 }
 
 /** Result of a completed authorization-code exchange (login callback). */

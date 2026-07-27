@@ -96,6 +96,21 @@ describe('handleLoginCallback', () => {
     expect((init as RequestInit).headers).not.toHaveProperty('Authorization');
   });
 
+  it('passes merkos_token through when the client has issue_legacy_token', async () => {
+    const state = 'S-LEGACY';
+    const nonce = 'N-LEGACY';
+    stashFor(state, nonce);
+    const idToken = await signTestJwt(key, sampleClaims({ nonce }));
+    const fetchImpl = tokenResponse({ id_token: idToken, merkos_token: 'HS256.authcode.jwt' });
+
+    const result = await handleLoginCallback(config, {
+      url: `${config.redirectUri}?code=AUTH_CODE&state=${state}`,
+      fetchImpl,
+      jwks: key.jwks,
+    });
+    expect(result.tokens.merkos_token).toBe('HS256.authcode.jwt');
+  });
+
   it('rejects an unknown/expired state (no stash → CSRF guard)', async () => {
     await expect(
       handleLoginCallback(config, {
@@ -161,6 +176,13 @@ describe('refreshTokens', () => {
 
     const [, init] = (fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls[0]!;
     expect(String((init as RequestInit).body)).toContain('grant_type=refresh_token');
+  });
+
+  it('passes a freshly-minted merkos_token through on refresh', async () => {
+    const idToken = await signTestJwt(key, sampleClaims());
+    const fetchImpl = tokenResponse({ id_token: idToken, merkos_token: 'HS256.rolled.jwt' });
+    const tokens = await refreshTokens(config, 'OLD_RT', { fetchImpl });
+    expect(tokens.merkos_token).toBe('HS256.rolled.jwt');
   });
 
   it('throws when no refresh_token is supplied', async () => {

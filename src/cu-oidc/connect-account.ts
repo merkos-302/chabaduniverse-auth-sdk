@@ -175,6 +175,7 @@ export async function exchangeValuToken(
     expires_in?: number;
     scope?: string;
     issued_token_type?: string;
+    merkos_token?: string;
   };
 
   // RFC 8693 §2.2: the issued id_token rides in `access_token`.
@@ -190,6 +191,9 @@ export async function exchangeValuToken(
     ...(payload.token_type ? { token_type: payload.token_type } : {}),
     ...(payload.expires_in !== undefined ? { expires_in: payload.expires_in } : {}),
     ...(payload.scope ? { scope: payload.scope } : {}),
+    // Raw HS256 Merkos-Platform token; a top-level field on the token-exchange
+    // response, present only when the client has `issue_legacy_token: true`.
+    ...(payload.merkos_token ? { merkos_token: payload.merkos_token } : {}),
   };
 
   return { tokens, claims: getClaims(issued) };
