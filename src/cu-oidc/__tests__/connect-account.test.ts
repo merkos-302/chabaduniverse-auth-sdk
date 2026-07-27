@@ -149,6 +149,20 @@ describe('exchangeValuToken', () => {
     expect(new URLSearchParams(capturedBody).get('audience')).toBe('miniapp');
   });
 
+  it('surfaces merkos_token when the exchange response carries it (issue_legacy_token client)', async () => {
+    const { tokens } = await exchangeValuToken(config, 'valu.jwt', {
+      fetchImpl: jsonFetch({ access_token: ENRICHED, merkos_token: 'HS256.merkos.jwt' }),
+    });
+    expect(tokens.merkos_token).toBe('HS256.merkos.jwt');
+  });
+
+  it('leaves merkos_token undefined when the response omits it', async () => {
+    const { tokens } = await exchangeValuToken(config, 'valu.jwt', {
+      fetchImpl: jsonFetch({ access_token: ENRICHED }),
+    });
+    expect(tokens.merkos_token).toBeUndefined();
+  });
+
   it('throws CuOidcConnectError on a non-2xx / empty response', async () => {
     await expect(
       exchangeValuToken(config, 'valu.jwt', { fetchImpl: jsonFetch({ error: 'invalid_grant' }, 400) }),

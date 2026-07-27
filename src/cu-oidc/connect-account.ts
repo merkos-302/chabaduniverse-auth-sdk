@@ -1,13 +1,21 @@
 /**
  * cu-oidc — cross-method identity linking, consumer side (CU-1049 / CU-1047).
  *
- * The problem: a mini-app inside the Valu shell holds a Valuverse identity
- * token. Exchanging it at cu-oidc (RFC 8693) mints a cu-oidc token, but if
- * this Valu identity has never been linked to a magic-link-verified email the
- * `cu_users` row is "thin" — keyed by `valu_user_id`, no email, no SF/Neo4j
- * enrichment. The user's enriched identity (a magic-link-first row keyed by
- * email) exists separately and nothing joins them, because the Valu token
- * carries no email.
+ * The problem (as of 2026-07-21, narrower than it used to be): a mini-app
+ * inside the Valu shell holds a Valuverse identity token. Exchanging it at
+ * cu-oidc (RFC 8693) mints a cu-oidc token, but if this Valu identity has
+ * never been linked to a magic-link-verified email the `cu_users` row is
+ * "thin" — keyed by `valu_user_id`, no email, no SF/Neo4j enrichment. Until
+ * 2026-07-21 this was universal (the Valu token carried no email at all); Valu
+ * now includes a verified email in the identity token for any user who has
+ * completed a Merkos-mediated login into Valuverse at least once (live-
+ * verified via a signature-checked capture — see the trust-gate comment on
+ * cu-oidc's `token-exchange-grant.ts`). So `exchangeValuToken`'s first call
+ * now typically comes back already-enriched for such users, with no
+ * interstitial needed. This module's flow still matters for the identities
+ * Valu hasn't attached an email to yet — the genuinely thin case, not
+ * "every Valu identity" — and for the `email_verified`-precision case still
+ * pending on Valu's side (see `isEnrichedClaims` below).
  *
  * The fix (CU-1048 backend + this module): a self-verifying magic-link
  * interstitial. cu-oidc hosts a page that receives the Valu token via
@@ -167,6 +175,7 @@ export async function exchangeValuToken(
     expires_in?: number;
     scope?: string;
     issued_token_type?: string;
+    merkos_token?: string;
   };
 
   // RFC 8693 §2.2: the issued id_token rides in `access_token`.
@@ -182,6 +191,9 @@ export async function exchangeValuToken(
     ...(payload.token_type ? { token_type: payload.token_type } : {}),
     ...(payload.expires_in !== undefined ? { expires_in: payload.expires_in } : {}),
     ...(payload.scope ? { scope: payload.scope } : {}),
+    // Raw HS256 Merkos-Platform token; a top-level field on the token-exchange
+    // response, present only when the client has `issue_legacy_token: true`.
+    ...(payload.merkos_token ? { merkos_token: payload.merkos_token } : {}),
   };
 
   return { tokens, claims: getClaims(issued) };
