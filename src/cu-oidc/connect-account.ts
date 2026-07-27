@@ -1,13 +1,21 @@
 /**
  * cu-oidc — cross-method identity linking, consumer side (CU-1049 / CU-1047).
  *
- * The problem: a mini-app inside the Valu shell holds a Valuverse identity
- * token. Exchanging it at cu-oidc (RFC 8693) mints a cu-oidc token, but if
- * this Valu identity has never been linked to a magic-link-verified email the
- * `cu_users` row is "thin" — keyed by `valu_user_id`, no email, no SF/Neo4j
- * enrichment. The user's enriched identity (a magic-link-first row keyed by
- * email) exists separately and nothing joins them, because the Valu token
- * carries no email.
+ * The problem (as of 2026-07-21, narrower than it used to be): a mini-app
+ * inside the Valu shell holds a Valuverse identity token. Exchanging it at
+ * cu-oidc (RFC 8693) mints a cu-oidc token, but if this Valu identity has
+ * never been linked to a magic-link-verified email the `cu_users` row is
+ * "thin" — keyed by `valu_user_id`, no email, no SF/Neo4j enrichment. Until
+ * 2026-07-21 this was universal (the Valu token carried no email at all); Valu
+ * now includes a verified email in the identity token for any user who has
+ * completed a Merkos-mediated login into Valuverse at least once (live-
+ * verified via a signature-checked capture — see the trust-gate comment on
+ * cu-oidc's `token-exchange-grant.ts`). So `exchangeValuToken`'s first call
+ * now typically comes back already-enriched for such users, with no
+ * interstitial needed. This module's flow still matters for the identities
+ * Valu hasn't attached an email to yet — the genuinely thin case, not
+ * "every Valu identity" — and for the `email_verified`-precision case still
+ * pending on Valu's side (see `isEnrichedClaims` below).
  *
  * The fix (CU-1048 backend + this module): a self-verifying magic-link
  * interstitial. cu-oidc hosts a page that receives the Valu token via
